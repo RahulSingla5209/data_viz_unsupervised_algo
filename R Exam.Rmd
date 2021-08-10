@@ -1,0 +1,235 @@
+---
+title: "R Exam"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Question 1
+```{r, echo=FALSE}
+rm(list = ls())
+library(DescTools)
+library(tidyverse)
+df = read.csv('greenbuildings.csv', header = T)
+
+df$green_rating = as.factor(df$green_rating)
+df$scaled_rent = df$Rent / df$cluster_rent
+
+#scaled
+difference_in_rents =
+    median(df[df$green_rating  == 1,]$scaled_rent) - 
+            median(df[df$green_rating  == 0,]$scaled_rent)
+```
+Rents of Green housing is, on average, `r difference_in_rents`% greater than non-green
+
+```{r, echo=FALSE}
+additional_rent_pre_sqft = 25 * (difference_in_rents + 1) #assuming $25 to be base
+
+area = 250000 #sqft
+additional_pay_from_green = additional_rent_pre_sqft * area
+```
+Additional Pay from Green - `r additional_pay_from_green`
+
+```{r, echo=FALSE}
+df %>% ggplot(aes(x = stories, y = Rent)) + 
+  geom_point() +
+  geom_vline(xintercept = 15) +
+  stat_smooth(method = "lm", col = "red", formula = 'y ~ x') +
+  facet_wrap(vars(green_rating)) + xlim(0, 60)
+
+df %>% ggplot(aes(x = size, y = Rent, color = class_a)) + 
+  geom_point() +
+  geom_vline(xintercept = 250000) +
+  stat_smooth(method = "lm", col = "red", formula = 'y ~ x') +
+  facet_wrap(vars(green_rating)) + scale_x_log10() + ylim(0, 100)
+
+df$class_a = as.factor(df$class_a)
+df %>% ggplot(aes(x = Rent, color = green_rating)) + 
+  geom_histogram() +  facet_wrap(vars(class_a), nrow = 2) + 
+  xlim(0, 100) +
+  labs(title = "Facet wrap - Class A")
+
+df %>% ggplot(aes(x = Rent, color = green_rating)) + 
+  geom_histogram() +  
+  facet_wrap(vars(amenities), nrow = 2) + 
+  xlim(0, 100) +
+  labs(title = "Facet wrap - Amenties")
+```
+
+# Question 2
+
+```{r, echo=FALSE}
+rm(list = ls())
+df = data.table::fread('ABIA.csv')
+df = df[df$Cancelled == 0,]
+df[is.na(df)] <- 0
+df %>% ggplot(aes(x=ArrDelay, y = DepDelay)) + 
+  geom_point(alpha = 0.2) + 
+  facet_wrap(vars(Month))
+```
+
+
+
+```{r, echo=FALSE}
+df$unavoidable_delays = df$WeatherDelay + df$NASDelay + df$SecurityDelay
+df1 <-  df %>% 
+  group_by(Month) %>%
+  summarise("average_dep_delay" = mean(DepDelay),
+            "average_unavoidable_delays" = mean(unavoidable_delays, na.rm = T),
+            "percentage" = average_unavoidable_delays / average_dep_delay) %>% ungroup()
+  
+df1 %>% 
+  ggplot(aes(y=average_dep_delay, 
+             x = Month, 
+             fill = average_unavoidable_delays)) + 
+  geom_bar(position="stack", stat="identity")
+```
+
+
+# Question 3
+
+```{r, echo=FALSE}
+rm(list = ls())
+
+
+library(quantmod)
+library(mosaic)
+
+#stocks chosen - 
+# Low Risk - Apple, Google, Texas Instruments 
+# Medium Risk - Tesla
+
+mystocks = c("AAPL",  "GOOGL", "TXN", "TSLA")
+getSymbols(mystocks)
+
+#adjust for stock splits and dividends 
+apple = adjustOHLC(AAPL)
+google = adjustOHLC(GOOGL)
+ti = adjustOHLC(TXN)
+tesla = adjustOHLC(TSLA)
+
+df = cbind(ClCl(apple), ClCl(google), ClCl(ti), 
+           ClCl(tesla))
+all_returns = as.matrix(na.omit(df))
+```
+
+
+## Portofolio 1
+```{r, echo=FALSE}
+holding = 100000 #100 Grand
+n_days = 20
+
+protfolio1 = c(0.25, 0.25, 0.25, 0.25)
+
+n_simulations = 30000
+
+wealth_tracker = rep(0, n_days)
+all_simulation = NULL
+
+for (simulation in 1:n_simulations)
+{
+  current_holding = holding
+  wealth_tracker = rep(0, n_days)
+  for (i in 1: n_days)
+  {
+    holdings = current_holding * protfolio1
+    r = resample(all_returns, size = 1)
+    total_holding = sum((1 + r) * holdings)
+    wealth_tracker[i] = total_holding
+    current_holding = total_holding
+  }
+  all_simulation = rbind(all_simulation, wealth_tracker)
+}
+
+wealth_gain = all_simulation[, 20] - holding
+hist(wealth_gain, breaks = 1000, xlim = c(-40000, 40000), 
+     main = "Gain for Portofolio 1")
+abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
+```
+
+
+`r quantile(wealth_gain, prob=0.05)`
+
+## Portofolio 2
+```{r, echo=FALSE}
+holding = 100000 #100 Grand
+n_days = 20
+
+protfolio1 = c(0.2, 0.15, 0.15, 0.5)
+
+n_simulations = 30000
+
+wealth_tracker = rep(0, n_days)
+all_simulation = NULL
+
+for (simulation in 1:n_simulations)
+{
+  current_holding = holding
+  wealth_tracker = rep(0, n_days)
+  for (i in 1: n_days)
+  {
+    holdings = current_holding * protfolio1
+    r = resample(all_returns, size = 1)
+    total_holding = sum((1 + r) * holdings)
+    wealth_tracker[i] = total_holding
+    current_holding = total_holding
+  }
+  all_simulation = rbind(all_simulation, wealth_tracker)
+}
+
+wealth_gain = all_simulation[, 20] - holding
+hist(wealth_gain, breaks = 1000, xlim = c(-40000, 40000), 
+     main = "Gain for Portofolio 2")
+abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
+```
+
+
+`r quantile(wealth_gain, prob=0.05)`
+
+## Portofolio 3
+```{r, echo=FALSE}
+holding = 100000 #100 Grand
+n_days = 20
+
+protfolio1 = c(0.2, 0.2, 0.5, 0.1)
+
+n_simulations = 30000
+
+wealth_tracker = rep(0, n_days)
+all_simulation = NULL
+
+for (simulation in 1:n_simulations)
+{
+  current_holding = holding
+  wealth_tracker = rep(0, n_days)
+  for (i in 1: n_days)
+  {
+    holdings = current_holding * protfolio1
+    r = resample(all_returns, size = 1)
+    total_holding = sum((1 + r) * holdings)
+    wealth_tracker[i] = total_holding
+    current_holding = total_holding
+  }
+  all_simulation = rbind(all_simulation, wealth_tracker)
+}
+
+wealth_gain = all_simulation[, 20] - holding
+hist(wealth_gain, breaks = 1000, xlim = c(-40000, 40000), 
+     main = "Gain for Portofolio 3")
+abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
+```
+
+
+`r quantile(wealth_gain, prob=0.05)`
+
+# Question 4
+
+```{r, echo=FALSE}
+
+rm(list = ls())
+
+df = read.csv('social_marketing.csv', header = T)
+```
+
