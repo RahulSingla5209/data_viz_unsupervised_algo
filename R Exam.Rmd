@@ -32,18 +32,20 @@ additional_pay_from_green = additional_rent_pre_sqft * area
 ```
 Additional Pay from Green - `r additional_pay_from_green`
 
-```{r, echo=FALSE}
-df %>% ggplot(aes(x = stories, y = Rent)) + 
-  geom_point() +
-  geom_vline(xintercept = 15) +
-  stat_smooth(method = "lm", col = "red", formula = 'y ~ x') +
-  facet_wrap(vars(green_rating)) + xlim(0, 60)
 
-df %>% ggplot(aes(x = size, y = Rent, color = class_a)) + 
-  geom_point() +
-  geom_vline(xintercept = 250000) +
-  stat_smooth(method = "lm", col = "red", formula = 'y ~ x') +
-  facet_wrap(vars(green_rating)) + scale_x_log10() + ylim(0, 100)
+
+```{r, echo=FALSE}
+#df %>% ggplot(aes(x = stories, y = Rent)) + 
+#  geom_point() +
+#  geom_vline(xintercept = 15) +
+#  stat_smooth(method = "lm", col = "red", formula = 'y ~ x') +
+#  facet_wrap(vars(green_rating)) + xlim(0, 60)
+#
+#df %>% ggplot(aes(x = size, y = Rent, color = class_a)) + 
+#  geom_point() +
+#  geom_vline(xintercept = 250000) +
+#  stat_smooth(method = "lm", col = "red", formula = 'y ~ x') +
+#  facet_wrap(vars(green_rating)) + scale_x_log10() + ylim(0, 100)
 
 df$class_a = as.factor(df$class_a)
 df %>% ggplot(aes(x = Rent, color = green_rating)) + 
@@ -58,6 +60,38 @@ df %>% ggplot(aes(x = Rent, color = green_rating)) +
   labs(title = "Facet wrap - Amenties")
 ```
 
+
+**The East Cesar Chavez area seems to be high profile and seems like that it has all the amenities. Let's rerun the analysis for class a and amenties**
+
+```{r}
+df1 = df[df$class_a == 1,]
+additional_rent_pre_sqft = median(df1[df1$green_rating  == 1,]$Rent) - median(df1[df1$green_rating  == 0,]$Rent)
+area = 250000 #sqft
+additional_pay_from_green = additional_rent_pre_sqft * area
+```
+Additional Pay from Green - `r additional_pay_from_green`
+
+```{r}
+df2 = df[df$amenities == 1,]
+additional_rent_pre_sqft = median(df2[df2$green_rating  == 1,]$Rent) - median(df2[df2$green_rating  == 0,]$Rent)
+
+area = 250000 #sqft
+additional_pay_from_green = additional_rent_pre_sqft * area
+```
+Additional Pay from Green - `r additional_pay_from_green`
+
+```{r}
+df3 = df[df$amenities == 1 & df$class_a == 1,]
+additional_rent_pre_sqft = median(df3[df3$green_rating  == 1,]$Rent) - median(df3[df3$green_rating  == 0,]$Rent)
+
+area = 250000 #sqft
+additional_pay_from_green = additional_rent_pre_sqft * area
+```
+Additional Pay from Green - `r additional_pay_from_green`
+
+
+
+
 # Question 2
 
 ```{r, echo=FALSE}
@@ -65,15 +99,22 @@ rm(list = ls())
 df = data.table::fread('ABIA.csv')
 df = df[df$Cancelled == 0,]
 df[is.na(df)] <- 0
-df %>% ggplot(aes(x=ArrDelay, y = DepDelay)) + 
-  geom_point(alpha = 0.2) + 
-  facet_wrap(vars(Month))
+df$unavoidable_delays = df$WeatherDelay + df$NASDelay + df$SecurityDelay
+#df$unavoidable_delays_perc = df$unavoidable_delays / df$DepDelay
+df$unavoidable_delays_perc = abs(df$unavoidable_delays / df$DepDelay) > 0
+df[is.na(df)] <- 0
+df%>%ggplot() + 
+  geom_point(aes(x=ArrDelay, y = DepDelay, 
+                  shape = as.factor(unavoidable_delays_perc),
+                  color = as.factor(unavoidable_delays_perc)),
+             size=2,
+             alpha = 0.5) + 
+  facet_wrap(vars(Month)) 
 ```
 
 
 
 ```{r, echo=FALSE}
-df$unavoidable_delays = df$WeatherDelay + df$NASDelay + df$SecurityDelay
 df1 <-  df %>% 
   group_by(Month) %>%
   summarise("average_dep_delay" = mean(DepDelay),
@@ -227,9 +268,77 @@ abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
 # Question 4
 
 ```{r, echo=FALSE}
-
 rm(list = ls())
+library(LICORS)
 
 df = read.csv('social_marketing.csv', header = T)
+
+df = df[, -1]
 ```
 
+number of followers - `r nrow(df)`
+
+## K-Mean clustering
+
+K-Means good when the number of samples is huge
+
+No scaling will be done because the unit of all the columns is same.
+
+Different K and different distance metrics will be explored, starting with K = 5 and Euclidean distance metric.
+
+```{r, echo=FALSE}
+clusters = c(2: 15)
+within_SSE = rep(0, length(clusters))
+between_SSE = rep(0, length(clusters))
+
+for (i in c(1: length(clusters)))
+{
+  clust1 = kmeanspp(df, clusters[i])
+  within_SSE[i] = clust1$tot.withinss
+  between_SSE[i] = clust1$betweenss
+}
+
+plot(clusters, within_SSE)
+plot(clusters, between_SSE)
+
+```
+
+```{r, echo=FALSE}
+set.seed(123)
+clust1 = kmeanspp(df, 4)
+(clust1$centers - colMeans(df, na.rm = T))/apply(df, 2, sd)
+```
+
+Groups identified -
+1. Teen girls? - High shopping, fashion, school, chatter, photosharing
+2. Fitness freaks - high - Outdoors, personal_fitness , health_nutirition
+3. Old person - religion, adult, food
+4. college students - high - college_uni, online_gaming, sport_playing
+
+
+
+```{r, echo=FALSE}
+
+length(which(clust1$cluster == 1))
+length(which(clust1$cluster == 2))
+length(which(clust1$cluster == 3))
+length(which(clust1$cluster == 4))
+
+```
+
+## Heirarchial Clustering
+
+```{r, echo=FALSE}
+hier_people = hclust(dist(df, method='euclidean'), method='complete')
+plot(hier_people, cex=0.8)
+```
+
+
+```{r, echo=FALSE}
+cluster2 = cutree(hier_people, k = 4)
+summary(factor(cluster2))
+
+```
+
+
+I think KMeans clustering provides good enough insights.
