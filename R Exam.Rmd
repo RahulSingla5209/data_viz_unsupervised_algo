@@ -100,16 +100,21 @@ df = data.table::fread('ABIA.csv')
 df = df[df$Cancelled == 0,]
 df[is.na(df)] <- 0
 df$unavoidable_delays = df$WeatherDelay + df$NASDelay + df$SecurityDelay
-#df$unavoidable_delays_perc = df$unavoidable_delays / df$DepDelay
 df$unavoidable_delays_perc = abs(df$unavoidable_delays / df$DepDelay) > 0
 df[is.na(df)] <- 0
 df%>%ggplot() + 
   geom_point(aes(x=ArrDelay, y = DepDelay, 
                   shape = as.factor(unavoidable_delays_perc),
                   color = as.factor(unavoidable_delays_perc)),
-             size=2,
-             alpha = 0.5) + 
-  facet_wrap(vars(Month)) 
+             size=1.5,
+             alpha = 0.3) + 
+  facet_wrap(vars(Month)) +
+  labs(title = "Arrival Delay vs Dept Delay by months",
+       x = "Arrival Delay",
+       y = "Departure Delay",
+       color = "Delay caused due to \n Airport Authorities",
+       shape = "Delay caused due to \n Airport Authorities"
+       )
 ```
 
 
@@ -342,3 +347,167 @@ summary(factor(cluster2))
 
 
 I think KMeans clustering provides good enough insights.
+
+
+# Question 5
+
+```{r}
+rm(list = ls())
+library(tm) 
+library(tidyverse)
+library(slam)
+library(proxy)
+library(plyr)
+library(caret)
+library(randomForest)
+
+# function for reading text as plain data
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+
+# fetching all directory
+file_list = Sys.glob('./ReutersC50/C50train/*/*.txt')
+
+# read text
+text = lapply(file_list, readerPlain) 
+
+# Create a corpus from the text above
+documents_raw = Corpus(VectorSource(text))
+
+# modifying corpus
+my_documents = documents_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+# removing stop words
+my_documents = tm_map(my_documents, 
+                      content_transformer(removeWords), 
+                      stopwords("en"))
+
+# Create Term frequency matrix. Each row is term frequncy vector of single  document 
+DTM = DocumentTermMatrix(my_documents)
+# Current Sparisty is 99%. Let's remove long tail of infrequently used words
+DTM = removeSparseTerms(DTM, 0.95)
+train_X = as.matrix(DTM)
+
+# Let's create target variable
+train_Y = rep(1, 50)
+for (i in 2:50)
+{
+  train_Y = c(train_Y, rep(i, 50))
+}
+```
+
+
+
+```{r}
+# fetching all directory
+file_list = Sys.glob('./ReutersC50/C50test/*/*.txt')
+
+# read text
+text = lapply(file_list, readerPlain) 
+
+# Create a corpus from the text above
+documents_raw = Corpus(VectorSource(text))
+
+# modifying corpus
+my_documents = documents_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+# removing stop words
+my_documents = tm_map(my_documents, 
+                      content_transformer(removeWords), 
+                      stopwords("en"))
+
+# Create Term frequency matrix. Each row is term frequncy vector of single  document 
+DTM = DocumentTermMatrix(my_documents)
+# Current Sparisty is 99%. Let's remove long tail of infrequently used words
+DTM = removeSparseTerms(DTM, 0.95)
+test_X = as.matrix(DTM)
+
+# Let's create target variable
+test_Y = rep(1, 50)
+for (i in 2:50)
+{
+  test_Y = c(test_Y, rep(i, 50))
+}
+```
+
+
+```{r}
+scrub_cols = which(colSums(train_X) == 0)
+scrub_cols = which(sapply(as.data.frame(train_X), function(x) var(x, na.rm = T)) == 0)
+
+train_X = train_X[,-scrub_cols]
+```
+
+```{r}
+pr.out=prcomp(train_X , scale=TRUE, rank = 200)
+```
+
+
+```{r}
+rf = randomForest(x = pr.out$x, y = as.factor(train_Y), 
+                  type = 'classification', maxnodes = 300)
+confusionMatrix(rf$predicted, as.factor(train_Y), 
+                positive = NULL, 
+                dnn = c("Prediction", "Reference"))
+```
+
+
+```{r}
+cols = c()
+for (i in c(1: length(test_Y)))
+{
+  if(colnames(test_X)[i] %in% colnames(train_X))
+    cols = c(cols, i)
+}
+test_scrubbed = scale(test_X)[,cols]
+
+yy <- read.table(textConnection(""), col.names = colnames(train_X),
+                 colClasses = "integer")
+
+test_data = rbind.fill(yy, as.data.frame(test_scrubbed))
+test_data[is.na(test_data)] = 0
+
+test_pca = predict(pr.out, newdata = test_data)
+test_result = predict(rf, newdata = test_pca, type = 'class')
+
+confusionMatrix(test_result, as.factor(train_Y), 
+                positive = NULL, 
+                dnn = c("Prediction", "Reference"))
+```
+
+
+# Question 6
+
+```{r}
+rm(list = ls())
+
+groceries = read.transactions('groceries.txt', sep = ',', 
+                              rm.duplicates = T, header = F,
+                              format = 'basket')
+summary(groceries)
+```
+
+```{r}
+grocery_rules = apriori(groceries, 
+	parameter=list(support=.005, confidence=.1, maxlen=5))
+inspect(subset(grocery_rules, subset=lift > 4))
+```
+
+```{r}
+plot(grocery_rules, measure = c("support", "confidence"), shading = 'lift')
+```
+
+```{r}
+saveAsGraph(head(grocery_rules, n = 1000, by = "lift"), file = "musicrules.graphml")
+```
+
+
