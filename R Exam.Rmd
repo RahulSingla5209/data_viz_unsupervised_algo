@@ -360,6 +360,8 @@ library(proxy)
 library(plyr)
 library(caret)
 library(randomForest)
+library(arules)
+library(arulesViz)
 
 # function for reading text as plain data
 readerPlain = function(fname){
