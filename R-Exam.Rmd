@@ -481,6 +481,10 @@ for (i in 2:50)
 }
 ```
 
+Only term frequency vector is used for making the predictions. 
+
+Adding IDF factors, along with RF model was giving poor prediction accuracy of just 6%.  
+
 
 ```{r,echo=FALSE,warning=FALSE}
 scrub_cols = which(colSums(train_X) == 0)
@@ -494,17 +498,30 @@ pr.out=prcomp(train_X , scale=TRUE, rank = 200)
 summary(pr.out)
 ```
 
+Going from 793 features to just 200 features with PCA.
 
-```{r}
+Explained proportion with 200 components is 60% which good enough dimensional reduction and without much loss in prediction accuracy.
+
+
+```{r, echo=FALSE,warning=FALSE}
 rf = randomForest(x = pr.out$x, y = as.factor(train_Y), 
                   type = 'classification', maxnodes = 300)
 table = confusionMatrix(rf$predicted, as.factor(train_Y), 
                 positive = NULL, 
                 dnn = c("Prediction", "Reference"))
+
+print(table$overall)
+
+as.data.frame(table$table) %>% ggplot(aes(x=Prediction, y=Reference, fill=Freq)) + geom_tile() 
 ```
 
 
-```{r}
+Train accuracy = 66%
+
+Baseline accuracy = 2% (50 classes)
+
+
+```{r, echo=FALSE,warning=FALSE}
 cols = c()
 for (i in c(1: length(test_Y)))
 {
@@ -522,11 +539,16 @@ test_data[is.na(test_data)] = 0
 test_pca = predict(pr.out, newdata = test_data)
 test_result = predict(rf, newdata = test_pca, type = 'class')
 
-confusionMatrix(test_result, as.factor(train_Y), 
+table = confusionMatrix(test_result, as.factor(train_Y), 
                 positive = NULL, 
                 dnn = c("Prediction", "Reference"))
+
+print(table$overall)
+
+as.data.frame(table$table) %>% ggplot(aes(x=Prediction, y=Reference, fill=Freq)) + geom_tile() 
 ```
 
+Test accuracy = 33.2%
 
 # Question 6
 
