@@ -1,7 +1,7 @@
 ---
-title: "R Exam"
+title: "R, STA 380 - Exercises Second Half"
 output: pdf_document
-author: "Rahul Singla | Vishal Gupta | Prakhar Bansal | Ramya Madhuri Desineedi"
+author: "ML Part 2 - Group 3 \n Rahul Singla | Vishal Gupta | Prakhar Bansal | Ramya Madhuri Desineedi"
 ---
 
 ```{r setup, include=FALSE}
@@ -11,18 +11,18 @@ knitr::opts_chunk$set(echo = TRUE)
 
 Git hub link - https://github.com/RahulSingla5209/data_viz_unsupervised_algo
 
-# Question 1
-```{r, echo=FALSE}
+# Question 1 - Visual story telling part 1: green buildings
+
+```{r, echo=FALSE,warning=FALSE, include=FALSE}
 rm(list = ls())
 library(DescTools)
 library(tidyverse)
+```
 
+
+```{r, echo=FALSE}
 green.buildings = read.csv('greenbuildings.csv')
-summary(green.buildings)
-dim(green.buildings)
-# removing occupancy less than 10% to be inline with the analysis done 
 green.buildings = subset(green.buildings, leasing_rate >= 10)
-dim(green.buildings)
 
 green.buildings$green_rating = as.factor(green.buildings$green_rating)
 
@@ -113,7 +113,7 @@ stacked['rent_diff'] = stacked['green_rent'] - stacked['non_green_rent']
 
 ggplot(data=stacked, aes(x=age_bucket, y=rent_diff,)) +
   geom_bar(stat="identity") +
-  ggtitle('Different in rent of green vs non green buildings by differnet')
+  ggtitle('Median rent of green - Median rent of non green buildings by age')
 
 ```
 
@@ -132,7 +132,7 @@ And since this is a new building, we need to filter for non-renovated buildings.
 Only in 10-20 year range, The rent of new green buldings is higher than new non-green building in class_a area with amenities. 
 
 
-# Question 2
+# Question 2 - Visual story telling part 2: flights at ABIA
 
 ```{r, echo=FALSE}
 rm(list = ls())
@@ -169,18 +169,20 @@ Delay caused due to authorities is increased in June and July.
 
 
 # Question 3 -Portfolio Modeling     
-#### **In this problem, you will construct three different portfolios of exchange-traded funds, or ETFs, and use bootstrap resampling to analyze the short-term tail risk of your portfolios.**         
+#### **In this problem, you will construct three different portfolios of exchange-traded funds, or ETFs, and use bootstrap resampling to analyze the short-term tail risk of your portfolios.**           
+
 ```{r, echo=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
 library(quantmod)
 library(mosaic)
 ```
 
-We selected 4 ETFs to ensure diversity and different levels of risk for the portfolio. Below are the details:     
-*GOVT - Bond ETF to minimize our risks    
-*ISCV - Small Cap Value stock to expose us to the equity but with minimal risks     
-*VT - Large Cap Growth stock with the maximum holding to increase our returns     
-*IWS - Mid Cap Value stock with the maximum holding find a balance between growth and stability     
+We selected 4 ETFs to ensure diversity and different levels of risk for the portfolio. Below are the details:
+
+* GOVT - Bond ETF to minimize our risks    
+* ISCV - Small Cap Value stock to expose us to the equity but with minimal risks     
+* VT - Large Cap Growth stock with the maximum holding to increase our returns     
+* IWS - Mid Cap Value stock with the maximum holding find a balance between growth and stability     
 
 We have come up with 3 portfolios which suits 3 different age groups based on their risk tolerance. (Risk - low, medium, high)       
 
@@ -249,6 +251,7 @@ cat('\n5% Value at Risk for Low risk portfolio-',quantile(wealth_gain, prob=0.05
 Customers in their mid age group (40-60 years) have moderate risk appetite and hence would be interested to invest equally in low & high risk investments.    
 
 In this medium risk portfolio, we gave equal weightage to all ETFs: Govt. bonds(25%) Large Cap(25%) & Mid(25%) and Small cap (25%).     
+
 ```{r, echo=FALSE, warning=FALSE}
 holding = 100000 #100 Grand
 n_days = 20
@@ -294,7 +297,8 @@ young customers would invest heavily in small cap and medium cap ETFs. And will 
 
 Customers in their youth have high risk appetite and hence would be interested to invest more in high risk investments.    
 
-In this high risk portfolio, we gave minimum weightage(5%) in Govt. bonds, Large Cap(50%) & Mid(15%) and Small cap (30%).    
+In this high risk portfolio, we gave minimum weightage(5%) in Govt. bonds, Large Cap(50%) & Mid(15%) and Small cap (30%).  
+
 ```{r, echo=FALSE, warning=FALSE}
 holding = 100000 #100 Grand
 n_days = 20
@@ -342,13 +346,15 @@ As the portfolio risk increases, we are able to witness the decrease in returns 
 
 # Question 4 - Market segmentation      
 
-#### K-Mean clustering    
+#### K-Mean clustering        
 
-*K-Means works better when the number of samples is high    
 
-*scaling is not required because the unit of all the columns is same.    
+* K-Means works better when the number of samples is high    
 
-*We will explore different K and different distance metrics, starting with K = 2 and Euclidean distance metric.     
+* scaling is not required because the unit of all the columns is same.    
+
+* We will explore different K and different distance metrics, starting with K = 2 and Euclidean distance metric.     
+
 ```{r, echo=FALSE, warning=FALSE}
 # clear the environment
 rm(list = ls()) 
@@ -359,7 +365,7 @@ df = read.csv('social_marketing.csv', header=TRUE)
 df = df[, -1]
 ```
 
-number of followers - `r nrow(df)`
+Number of followers - `r nrow(df)`
 
 ```{r, echo=FALSE, warning=FALSE}
 clusters = c(2: 15)
@@ -378,6 +384,9 @@ plot(clusters, between_SSE)
 
 ```
 
+
+#### Scaled and Centered Cluster centroids (Z-scores) 
+
 ```{r, echo=FALSE, warning=FALSE}
 set.seed(123)
 clust1 = kmeanspp(df, 4)
@@ -386,12 +395,18 @@ clust1 = kmeanspp(df, 4)
 final_cluster = clust1
 
 cluster_mean = t(data.frame(final_cluster$centers))
-cluster_mean
 cluster1 = cluster_mean[abs(cluster_mean[,1]) >=  0.2*max(abs(cluster_mean[,1])), 1]
 cluster2 = cluster_mean[abs(cluster_mean[,2]) >=  0.2*max(abs(cluster_mean[,2])), 2]
 cluster3 = cluster_mean[abs(cluster_mean[,3]) >=  0.2*max(abs(cluster_mean[,3])), 3]
 cluster4 = cluster_mean[abs(cluster_mean[,4]) >=  0.2*max(abs(cluster_mean[,4])), 4]
-# 20% cutoff  is taken 
+```
+
+#### Bar plots of cluster centers for visualization
+
+plots below
+
+
+```{r, echo=FALSE, warning=FALSE}
 barplot(cluster1, las = 2, horiz = T)
 barplot(cluster2, las = 2, horiz = T)
 barplot(cluster3, las = 2, horiz = T)
@@ -410,9 +425,10 @@ length(which(clust1$cluster == 4))
 
 ```
 
-Profiling Methodology:
-* We have ran iterations with k=2,15 and based on the results we got, we finalized on clustering into 4 groups
-* For these clusters, we have found the cluster means through k-means algorithm and assigned tweets based on 0.2*max(feature value of these clusters) to a cluster
+Profiling Methodology:  
+
+*  We have ran iterations with k=2,15 and based on the results we got, we finalized on clustering into 4 groups
+*  For these clusters, we have found the cluster means through k-means algorithm and assigned tweets based on 0.2*max(feature value of these clusters) to a cluster
 
 Insights from clustering: 
 KMeans clustering has provided good insights from data.Below are groups identified-
@@ -421,8 +437,9 @@ Cluster 2. Fitness enthusiasts - high - Outdoors, personal_fitness , health_nuti
 Cluster 3. Middle aged group - religion, adult, food
 Cluster 4. College students - high - college_uni, online_gaming, sport_playing
 
-How these insights can help NutrientH20?
-* If we define Cluster 2 as fitness enthusiasts and Cluster 4 as College students, we can do focussed marketing on these group and strategise marketing campaigns to improve revenue from these nische groups and work on their retention
+How these insights can help NutrientH20? 
+
+*  If we define Cluster 2 as fitness enthusiasts and Cluster 4 as College students, we can do focussed marketing on these group and strategise marketing campaigns to improve revenue from these nische groups and work on their retention
 
 
 
@@ -433,10 +450,12 @@ How these insights can help NutrientH20?
 
 ```{r, echo=FALSE, warning=FALSE}
 hier_people = hclust(dist(df, method='euclidean'), method='complete')
-plot(hier_people, cex=0.8)
 ```
 
 
+```{r, echo=FALSE, warning=FALSE}
+plot(hier_people, cex=0.8)
+```
 
 
 ```{r, echo=FALSE, warning=FALSE}
@@ -448,6 +467,9 @@ summary(factor(cluster2))
 H-clustering is biased for one cluster and is not giving any useful insights.     
 
 # Question 5 - Author attribution
+
+#### Explained variance of different Principal components
+
 
 ```{r, echo=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
@@ -555,6 +577,7 @@ summary(pr.out)
 ```
 
 
+#### Visualization for confusion matrix - Train
 
 ```{r, echo=FALSE,warning=FALSE}
 rf = randomForest(x = pr.out$x, y = as.factor(train_Y), 
@@ -568,8 +591,7 @@ print(table$overall)
 as.data.frame(table$table) %>% ggplot(aes(x=Prediction, y=Reference, fill=Freq)) + geom_tile() 
 ```
 
-
-
+#### Visualization for confusion matrix - Test
 
 ```{r, echo=FALSE,warning=FALSE}
 cols = c()
@@ -602,31 +624,39 @@ as.data.frame(table$table) %>% ggplot(aes(x=Prediction, y=Reference, fill=Freq))
 
 Below is the summary of Steps followed:     
 1. Reading C50 train files
-2. Pre-Processing (train & test):      
+2. Pre-Processing (train & test):
+
   * Created bag-of-words     
   * Change all words to lowercase    
   * Remove numbers and punctuations    
   * Removed white spaces    
   * Removed Stop words    
   * Created term frequency matrix for the independent features    
-3. Modelling:   
+3. Modelling:
+
   * Created a y variable to find the author name for each document    
   * Created Principal components for train features and selected the 1st 200 features as they were able to explain 60% of variance of y.    
   * Multi-label Random Forest classification on the training set. Based on the confusion matrix table, we got train accuracy of 66%, while      our baseline accuracy = 2% (50 classes).   
 
-Note:    
+Note:  
+
 * Adding IDF factors, along with RF model was giving poor prediction accuracy of just 6%.     
 * Going from 793 features to just 200 features with PCA. Explained proportion with 200 components is 60% which good enough dimensional reduction and without much loss in prediction accuracy.     
 
-Results:   
+Results: 
+
 * Test accuracy achieved through Random Forest model with PCA features: and PCA: 33.2%       
 
 
 
 # Question 6 - Association rule mining
-```{r, echo=FALSE, warning=FALSE}
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
 library(arules)
+```
+
+
+```{r, echo=FALSE, warning=FALSE}
 library(arulesViz)
 groceries = read.transactions('groceries.txt', sep = ',', 
                               rm.duplicates = T, header = F,
@@ -652,9 +682,9 @@ grocery_rules = apriori(groceries,
 plot(grocery_rules, measure = c("support", "confidence"), shading = 'lift',jitter=0)
 ```
 
-*Anything with support >0.1 is clearly an outlier. Because these are individual items which have higher occurency in the item list. So, we will remove those rules.    
+* Anything with support >0.1 is clearly an outlier. Because these are individual items which have higher occurency in the item list. So, we will remove those rules.    
 
-*Looking at the graph above, Lift threshold should be 2 to make sure we evaluate only strong associations    
+* Looking at the graph above, Lift threshold should be 2 to make sure we evaluate only strong associations    
 
 
 ```{r, echo=FALSE, warning=FALSE}
@@ -677,10 +707,12 @@ Bidirectional rules with high lift and low support (which means highly complimen
 4. Vegetables are brought together in general
 
 In the grocery store, there are different centers. For example, below are often brought together:   
+
 * Fruits/vegetables/dairy products  
 * Hygiene products
 
 Next steps:   
+
 * We can deep dive and check why white bread is bought only with Ham and not milk. It could be because of thresholds we have set, but it needs further speculation.   
 
 #### Association rule graph visualization in Gephi
@@ -688,5 +720,11 @@ Next steps:
 
 ```{r,echo=FALSE,warning=FALSE}
 saveAsGraph(head(x, n = 1000, by = "lift"), file = "grocery.graphml")
-knitr::include_graphics("gephi.png")
+```
+
+```{r,echo=FALSE,warning=FALSE}
+library(png)
+mg <- readPNG('gephi.png')
+plot(NA,xlim = c(0, 2), ylim = c(0, 4), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
+rasterImage(img , 0, 0, 2, 4)
 ```
