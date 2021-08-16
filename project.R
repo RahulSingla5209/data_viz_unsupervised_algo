@@ -114,6 +114,11 @@ ggplot(data=stacked, aes(x=age_bucket, y=rent_diff,)) +
   geom_bar(stat="identity") +
   ggtitle('Different in rent of green vs non green buildings by differnet')
 
+# over the lifetime of the building, assumed to be 30 years, green building
+# won't be able to break even before the non-green building, as overall
+# expected rent diff (based on the median rent of the subset) 
+# is `r round(sum(stacked['rent_diff'])/1000000, 2)` negative 
+
 
 ##################################################
 ################ Problem 2: Airport data #########
