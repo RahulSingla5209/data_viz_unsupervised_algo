@@ -552,7 +552,7 @@ Test accuracy = 33.2%
 
 # Question 6
 
-```{r}
+```{r, echo=FALSE, warning=FALSE}
 rm(list = ls())
 
 library(arules)
@@ -566,16 +566,34 @@ summary(groceries)
 ```{r}
 grocery_rules = apriori(groceries, 
 	parameter=list(support=.005, confidence=.1, maxlen=5))
-
-x = arules::inspect(subset(grocery_rules, subset=lift > 3.2 & support < 0.1))
 ```
 
 ```{r}
 plot(grocery_rules, measure = c("support", "confidence"), shading = 'lift')
 ```
 
+Anything with support >0.1 is clearly an outlier. So, we will remove those rules.
+
+Looking at the graph above, Lift threshold should be 2 to make sure we evaluate only strongh associations
+
 ```{r}
-saveAsGraph(head(subset(grocery_rules, subset=lift > 2 & support < 0.1), n = 1000, by = "lift"), file = "grocery.graphml")
+x = subset(grocery_rules, subset=lift > 2 & support < 0.1)
+inspect(x)
+```
+
+### Association Graphs
+```{r,echo=FALSE,warning=FALSE}
+plot(head(x, 40, by='lift'), method='graph')
+```
+
+Bidirectional rules with high light
+
+1. Ham -> whitebread & Whitebread -> Ham
+2. Hygnie Articles -> Napkins & Napkins -> Hygnie Articles
+
+#### Association rule graph visualization in Gephi
+```{r,echo=FALSE,warning=FALSE}
+saveAsGraph(head(x, n = 1000, by = "lift"), file = "grocery.graphml")
 
 knitr::include_graphics("gephi.png")
 
