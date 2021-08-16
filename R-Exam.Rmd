@@ -9,91 +9,127 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-https://github.com/RahulSingla5209/data_viz_unsupervised_algo
+Git hub link - https://github.com/RahulSingla5209/data_viz_unsupervised_algo
 
 # Question 1
 ```{r, echo=FALSE}
 rm(list = ls())
 library(DescTools)
 library(tidyverse)
-df = read.csv('greenbuildings.csv', header = T)
 
-df$green_rating = as.factor(df$green_rating)
-df$scaled_rent = df$Rent / df$cluster_rent
+green.buildings = read.csv('greenbuildings.csv')
+summary(green.buildings)
+dim(green.buildings)
+# removing occupancy less than 10% to be inline with the analysis done 
+green.buildings = subset(green.buildings, leasing_rate >= 10)
+dim(green.buildings)
 
-#scaled
-difference_in_rents =
-    median(df[df$green_rating  == 1,]$scaled_rent) - 
-            median(df[df$green_rating  == 0,]$scaled_rent)
+green.buildings$green_rating = as.factor(green.buildings$green_rating)
+
+rent_agg = green.buildings %>% 
+              group_by(green_rating) %>% 
+              summarise(m = median(Rent))
+colnames(rent_agg) = c('green_rating', 'median_rent')
+rent_agg$green_rating = as.character(rent_agg$green_rating)
+
+ggplot(data=rent_agg, aes(x=green_rating, y=median_rent, fill=green_rating)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle('Median rent of green and non-green buildings')
+
+# trying to look at the rent of a green building with its cluster median rent
+# since we dont know the cluster it might be good to look at how economical well of
+# a green building is w.r.t cluster
+# 
+# green.buildings_green = subset(green.buildings, green_rating==1,
+#                                select=c(cluster, Rent, class_a, class_b, age, stories, leasing_rate, cluster_rent))
+# green.buildings_nongreen = subset(green.buildings, green_rating==0,
+#                                   select=c(cluster, Rent, class_a, class_b, age, stories, leasing_rate, cluster_rent))
+# 
+# summary(lm(Rent ~ cluster_rent - 1, green.buildings_green))
+
+
+# initially just look at all the rows
+
+# what i want to see - as age progress how does that affects the price of not-renovated buidling 
+non_renovated = subset(green.buildings, renovated==0,
+                       select=c(Rent, age, cluster, green_rating))
+non_renovated['age_buckets'] = ifelse(non_renovated$age <= 5, '0-5', 
+                                      ifelse(non_renovated$age <= 10, '05-10',
+                                             ifelse(non_renovated$age <= 20, '10-20',
+                                                    ifelse(non_renovated$age <= 30, '20-30', '30+'))))
+non_renovated_sum = non_renovated %>% group_by(age_buckets, green_rating) %>% summarize(median(Rent))
+colnames(non_renovated_sum) = c('age_bucket', 'green_rating', 'median_rent')
+non_renovated_sum$green_rating = as.character(non_renovated_sum$green_rating)
+
+ggplot(data=non_renovated_sum, aes(x=age_bucket, y=median_rent, fill=green_rating)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle('Median rent of non-renovated green and non-green buildings by age')
+
+# what i want to see - as age progress how does that affects the price of not-renovated building 
+# along with class a and with amenities
+non_renovated_a_am = subset(green.buildings, (renovated==0 & class_a==1 & amenities==1),
+                       select=c(Rent, age, cluster, green_rating))
+
+non_renovated_a_am['age_buckets'] = ifelse(non_renovated_a_am$age <= 5, '0-5', 
+                                      ifelse(non_renovated_a_am$age <= 10, '05-10',
+                                             ifelse(non_renovated_a_am$age <= 20, '10-20',
+                                                    ifelse(non_renovated_a_am$age <= 30, '20-30', '30+'))))
+non_renovated_a_am_sum = non_renovated_a_am %>% group_by(age_buckets, green_rating) %>% summarize(median(Rent))
+colnames(non_renovated_a_am_sum) = c('age_bucket', 'green_rating', 'median_rent')
+non_renovated_a_am_sum$green_rating = as.character(non_renovated_a_am_sum$green_rating)
+
+ggplot(data=non_renovated_a_am_sum, aes(x=age_bucket, y=median_rent, fill=green_rating)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle('Median rent of non-renovated, class A and with amenities green and non-green buildings by age')
+
+
+non_renovated_a_am_cnt = non_renovated_a_am %>% group_by(green_rating) %>% count(age_buckets) 
+
+ggplot(data=non_renovated_a_am_cnt, aes(x=age_buckets, y=n, fill=green_rating)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle('Count rent of non-renovated, class A and with amenities green and non-green buildings by age')
+
+
+# Break even calculation
+area = 250000
+investment = 100000000
+green.premium = 0.05
+
+# getting median non-green and green rent for 30 year
+non_green_rent = median(subset(green.buildings, (green_rating == 0 & age <= 30 & renovated==0 & class_a==1 & amenities==1), 
+                          select = Rent)[, 1])
+green_rent = median(subset(green.buildings, (green_rating == 1 & age <= 30 & renovated==0 & class_a==1 & amenities==1), 
+                          select = Rent)[, 1])
+
+
+# getting extra rent for green buildings incremental by age group
+stacked = base::merge(subset(non_renovated_a_am_sum, green_rating == 0), 
+      subset(non_renovated_a_am_sum, green_rating == 1),
+      by = c('age_bucket'))
+stacked['non_green_rent'] = area*stacked['median_rent.x']
+stacked['green_rent'] = area*stacked['median_rent.y']
+stacked = subset(stacked, age_bucket != '30+')
+stacked['rent_diff'] = stacked['green_rent'] - stacked['non_green_rent']
+
+ggplot(data=stacked, aes(x=age_bucket, y=rent_diff,)) +
+  geom_bar(stat="identity") +
+  ggtitle('Different in rent of green vs non green buildings by differnet')
+
 ```
-Rents of Green housing is, on average, `r difference_in_rents`% greater than non-green
-
-```{r, echo=FALSE}
-additional_rent_pre_sqft = 25 * (difference_in_rents + 1) #assuming $25 to be base
-
-area = 250000 #sqft
-additional_pay_from_green = additional_rent_pre_sqft * area
-```
-Additional Pay from Green - `r additional_pay_from_green`
 
 
 
-```{r, echo=FALSE}
-#df %>% ggplot(aes(x = stories, y = Rent)) + 
-#  geom_point() +
-#  geom_vline(xintercept = 15) +
-#  stat_smooth(method = "lm", col = "red", formula = 'y ~ x') +
-#  facet_wrap(vars(green_rating)) + xlim(0, 60)
-#
-#df %>% ggplot(aes(x = size, y = Rent, color = class_a)) + 
-#  geom_point() +
-#  geom_vline(xintercept = 250000) +
-#  stat_smooth(method = "lm", col = "red", formula = 'y ~ x') +
-#  facet_wrap(vars(green_rating)) + scale_x_log10() + ylim(0, 100)
+over the lifetime of the building, assumed to be 30 years, green building won't be able to break even before the non-green building, as overall expected rent diff (based on the median rent of the subset) is `r round(sum(stacked['rent_diff'])/1000000, 2)` million dollars.
 
-df$class_a = as.factor(df$class_a)
-df %>% ggplot(aes(x = Rent, color = green_rating)) + 
-  geom_histogram() +  facet_wrap(vars(class_a), nrow = 2) + 
-  xlim(0, 100) +
-  labs(title = "Facet wrap - Class A")
+There are some variables other than green rating that are affecting the rent of the building. 
 
-df %>% ggplot(aes(x = Rent, color = green_rating)) + 
-  geom_histogram() +  
-  facet_wrap(vars(amenities), nrow = 2) + 
-  xlim(0, 100) +
-  labs(title = "Facet wrap - Amenties")
-```
+Namely, Class_a, Age, Amenties, and Renovation variables are found to be other factors affecting the rent of the building.
 
+Having the building in class_a area with amenities, affect the rent of green building.
 
-**The East Cesar Chavez area seems to be high profile and seems like that it has all the amenities. Let's rerun the analysis for class a and amenties**
+And since this is a new building, we need to filter for non-renovated buildings.
 
-```{r}
-df1 = df[df$class_a == 1,]
-additional_rent_pre_sqft = median(df1[df1$green_rating  == 1,]$Rent) - median(df1[df1$green_rating  == 0,]$Rent)
-area = 250000 #sqft
-additional_pay_from_green = additional_rent_pre_sqft * area
-```
-Additional Pay from Green - `r additional_pay_from_green`
-
-```{r}
-df2 = df[df$amenities == 1,]
-additional_rent_pre_sqft = median(df2[df2$green_rating  == 1,]$Rent) - median(df2[df2$green_rating  == 0,]$Rent)
-
-area = 250000 #sqft
-additional_pay_from_green = additional_rent_pre_sqft * area
-```
-Additional Pay from Green - `r additional_pay_from_green`
-
-```{r}
-df3 = df[df$amenities == 1 & df$class_a == 1,]
-additional_rent_pre_sqft = median(df3[df3$green_rating  == 1,]$Rent) - median(df3[df3$green_rating  == 0,]$Rent)
-
-area = 250000 #sqft
-additional_pay_from_green = additional_rent_pre_sqft * area
-```
-Additional Pay from Green - `r additional_pay_from_green`
-
-
+Only in 10-20 year range, The rent of new green buldings is higher than new non-green building in class_a area with amenities. 
 
 
 # Question 2
@@ -122,40 +158,38 @@ df%>%ggplot() +
 ```
 
 
+we have plotted scatter plot for arrival delay vs departure delay. Facetted by months. Colored by Delay not caused due to airlines or airport authorities.
 
-```{r, echo=FALSE}
-df1 <-  df %>% 
-  group_by(Month) %>%
-  summarise("average_dep_delay" = mean(DepDelay),
-            "average_unavoidable_delays" = mean(unavoidable_delays, na.rm = T),
-            "percentage" = average_unavoidable_delays / average_dep_delay) %>% ungroup()
-  
-df1 %>% 
-  ggplot(aes(y=average_dep_delay, 
-             x = Month, 
-             fill = average_unavoidable_delays)) + 
-  geom_bar(position="stack", stat="identity")
-```
+## insights
+
+The delay count and delay times seems to be increased during vacation times - namely December, June, and July.
+
+Delay caused due to authorities is increased in June and July.
 
 
-# Question 3
 
-```{r, echo=FALSE, warning=FALSE}
+# Question 3 -Portfolio Modeling     
+#### **In this problem, you will construct three different portfolios of exchange-traded funds, or ETFs, and use bootstrap resampling to analyze the short-term tail risk of your portfolios.**         
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
-
-
 library(quantmod)
 library(mosaic)
+```
 
-## GOVT - Bond ETF to minimize our risks
-## ISCV - Small Cap Value stock to expose us to the equity but with minimal risks
-## VT - Large Cap Growth stock with the maximum holding to increase our returns
-## IWS - Mid Cap Value stock with the maximum holding find a balance between growth and stability
+We selected 4 ETFs to ensure diversity and different levels of risk for the portfolio. Below are the details:     
+*GOVT - Bond ETF to minimize our risks    
+*ISCV - Small Cap Value stock to expose us to the equity but with minimal risks     
+*VT - Large Cap Growth stock with the maximum holding to increase our returns     
+*IWS - Mid Cap Value stock with the maximum holding find a balance between growth and stability     
+
+We have come up with 3 portfolios which suits 3 different age groups based on their risk tolerance. (Risk - low, medium, high)       
+
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
 
 mystocks = c("GOVT", "ISCV", "VT", "IWS")
 getSymbols(mystocks, from = "2016-01-01")
 
-#adjust for stock splits and dividends 
+#To adjust for stock splits and dividends 
 govt = adjustOHLC(GOVT)
 iscv = adjustOHLC(ISCV)
 vt = adjustOHLC(VT)
@@ -167,16 +201,17 @@ all_returns = as.matrix(na.omit(df))
 ```
 
 
-## Portofolio 1
+### Portofolio 1 - Low Risk    
 
-Customers in their retirement will want to have a stable investment and not go for a lot of risk based investments.
-We will invest the maximum in bonds and then Large Cap. Exposure to Mid and Small cap will be low.
+Customers in their retirement period would want to have a stable income hence would not be interested to invest in high risk investments.        
 
-```{r, echo=FALSE}
+In this low risk portfolio, we gave maximum weightage(50%) in Govt. bonds, followed by Large Cap(25%) & Mid(25%) and least weightage to Small cap (5%).      
+
+```{r, echo=FALSE, warning=FALSE}
 holding = 100000 #100 Grand
 n_days = 20
 
-protfolio1 = c(0.5, 0.05, 0.25, 0.20)
+portfolio1 = c(0.5, 0.05, 0.25, 0.20)
 
 n_simulations = 30000
 
@@ -189,7 +224,7 @@ for (simulation in 1:n_simulations)
   wealth_tracker = rep(0, n_days)
   for (i in 1: n_days)
   {
-    holdings = current_holding * protfolio1
+    holdings = current_holding * portfolio1
     r = resample(all_returns, size = 1)
     total_holding = sum((1 + r) * holdings)
     wealth_tracker[i] = total_holding
@@ -203,20 +238,22 @@ hist(wealth_gain, breaks = 1000, xlim = c(-10000, 10000),
      main = "Gain for Portofolio 1")
 abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
 text(quantile(wealth_gain, prob=0.05) - 1500, 275, "VaR (5%)", col = 'red')
-```
+cat('\nAverage return of investement after 20 days for Low risk portfolio', mean(all_simulation[,n_days]), "\n")
+cat('\n5% Value at Risk for Low risk portfolio-',quantile(wealth_gain, prob=0.05), "\n")
 
+```
 
 `r quantile(wealth_gain, prob=0.05)`
 
-## Portofolio 2
+#### Portofolio 2 - Medium Risk    
+Customers in their mid age group (40-60 years) have moderate risk appetite and hence would be interested to invest equally in low & high risk investments.    
 
-Customers in their middle age will invest equally in equity and stocks. Thus they would prefer an equitable distribution.
-
-```{r, echo=FALSE}
+In this medium risk portfolio, we gave equal weightage to all ETFs: Govt. bonds(25%) Large Cap(25%) & Mid(25%) and Small cap (25%).     
+```{r, echo=FALSE, warning=FALSE}
 holding = 100000 #100 Grand
 n_days = 20
 
-protfolio1 = c(0.25, 0.25, 0.25, 0.25)
+portfolio2 = c(0.25, 0.25, 0.25, 0.25)
 
 n_simulations = 30000
 
@@ -229,7 +266,7 @@ for (simulation in 1:n_simulations)
   wealth_tracker = rep(0, n_days)
   for (i in 1: n_days)
   {
-    holdings = current_holding * protfolio1
+    holdings = current_holding * portfolio2
     r = resample(all_returns, size = 1)
     total_holding = sum((1 + r) * holdings)
     wealth_tracker[i] = total_holding
@@ -243,20 +280,26 @@ hist(wealth_gain, breaks = 1000, xlim = c(-10000, 10000),
      main = "Gain for Portofolio 2")
 abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
 text(quantile(wealth_gain, prob=0.05) - 1500, 275, "VaR (5%)", col = 'red')
+
+cat('\nAverage return of investement after 20 days for Medium risk portfolio', mean(all_simulation[,n_days]), "\n")
+cat('\n5% Value at Risk for Medium risk portfolio-',quantile(wealth_gain, prob=0.05), "\n")
 ```
 
 
 `r quantile(wealth_gain, prob=0.05)`
 
-## Portofolio 3
+## Portofolio 3 - High Risk    
 
-young customers would invest heavily in small cap and medium cap ETFs. And will have a minimal exposure in Bonds.
+young customers would invest heavily in small cap and medium cap ETFs. And will have a minimal exposure in Bonds.    
 
-```{r, echo=FALSE}
+Customers in their youth have high risk appetite and hence would be interested to invest more in high risk investments.    
+
+In this high risk portfolio, we gave minimum weightage(5%) in Govt. bonds, Large Cap(50%) & Mid(15%) and Small cap (30%).    
+```{r, echo=FALSE, warning=FALSE}
 holding = 100000 #100 Grand
 n_days = 20
 
-protfolio1 = c(0.05, 0.5, 0.15, 0.3)
+portfolio3 = c(0.05, 0.5, 0.15, 0.3)
 
 n_simulations = 30000
 
@@ -269,7 +312,7 @@ for (simulation in 1:n_simulations)
   wealth_tracker = rep(0, n_days)
   for (i in 1: n_days)
   {
-    holdings = current_holding * protfolio1
+    holdings = current_holding * portfolio3
     r = resample(all_returns, size = 1)
     total_holding = sum((1 + r) * holdings)
     wealth_tracker[i] = total_holding
@@ -283,36 +326,42 @@ hist(wealth_gain, breaks = 1000, xlim = c(-10000, 10000),
      main = "Gain for Portofolio 3")
 abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
 text(quantile(wealth_gain, prob=0.05) + 1500, 600, "VaR (5%)", col = 'red')
+
+cat('\nAverage return of investement after 20 days for High risk portfolio', mean(all_simulation[,n_days]), "\n")
+cat('\n5% Value at Risk for High risk portfolio-',quantile(wealth_gain, prob=0.05), "\n")
 ```
 
 
 `r quantile(wealth_gain, prob=0.05)`
 
-# Question 4
+#### **Summary**     
 
-```{r, echo=FALSE}
-rm(list = ls())
+For the High risk portfolio, we are observing the maximum return of investment ($102390.2) and the lowest 5% VaR(-$8749.14).     
+As the portfolio risk increases, we are able to witness the decrease in returns and increase in VaR value as expected.      
+
+
+# Question 4 - Market segmentation      
+
+#### K-Mean clustering    
+
+*K-Means works better when the number of samples is high    
+
+*scaling is not required because the unit of all the columns is same.    
+
+*We will explore different K and different distance metrics, starting with K = 2 and Euclidean distance metric.     
+```{r, echo=FALSE, warning=FALSE}
+# clear the environment
+rm(list = ls()) 
 library(LICORS)
 
-df = read.csv('social_marketing.csv', header = T)
-
+# Read the social marketing data from the csv file
+df = read.csv('social_marketing.csv', header=TRUE)
 df = df[, -1]
 ```
 
 number of followers - `r nrow(df)`
 
-
-We will explore both k-Means clustering and Hierarchical clustering. Based on insights, we will choose the methodlogy.
-
-## K-Mean clustering
-
-K-Means++ good when the number of samples is huge.
-
-No scaling will be done because the unit of all the columns is same.
-
-Different K and different distance metrics will be explored, starting with K = 2 and Euclidean distance metric.
-
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 clusters = c(2: 15)
 within_SSE = rep(0, length(clusters))
 between_SSE = rep(0, length(clusters))
@@ -350,18 +399,9 @@ barplot(cluster4, las = 2, horiz = T)
 
 ```
 
-Groups identified -
-1. Teen girls - High - shopping, fashion, school, chatter, photosharing
-
-2. Fitness freaks - high - Outdoors, personal_fitness , health_nutirition
-
-3. Family/ Middle aged person - high - religion, adult, food
-
-4. college students - high - college_uni, online_gaming, sport_playing
 
 
-
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 
 length(which(clust1$cluster == 1))
 length(which(clust1$cluster == 2))
@@ -370,28 +410,46 @@ length(which(clust1$cluster == 4))
 
 ```
 
-## Heirarchial Clustering
+Profiling Methodology:
+* We have ran iterations with k=2,15 and based on the results we got, we finalized on clustering into 4 groups
+* For these clusters, we have found the cluster means through k-means algorithm and assigned tweets based on 0.2*max(feature value of these clusters) to a cluster
 
-```{r, echo=FALSE}
+Insights from clustering: 
+KMeans clustering has provided good insights from data.Below are groups identified-
+Cluster 1. Teen girls? - High shopping, fashion, school, chatter, photosharing
+Cluster 2. Fitness enthusiasts - high - Outdoors, personal_fitness , health_nutirition
+Cluster 3. Middle aged group - religion, adult, food
+Cluster 4. College students - high - college_uni, online_gaming, sport_playing
+
+How these insights can help NutrientH20?
+* If we define Cluster 2 as fitness enthusiasts and Cluster 4 as College students, we can do focussed marketing on these group and strategise marketing campaigns to improve revenue from these nische groups and work on their retention
+
+
+
+
+#### Heirarchial Clustering
+
+
+
+```{r, echo=FALSE, warning=FALSE}
 hier_people = hclust(dist(df, method='euclidean'), method='complete')
 plot(hier_people, cex=0.8)
 ```
 
 
-```{r, echo=FALSE}
+
+
+```{r, echo=FALSE, warning=FALSE}
 cluster2 = cutree(hier_people, k = 4)
 summary(factor(cluster2))
 
 ```
 
+H-clustering is biased for one cluster and is not giving any useful insights.     
 
-## Insights
+# Question 5 - Author attribution
 
-H-clustering is biased for one cluster and is not giving any useful insights.
-
-# Question 5
-
-```{r, echo=FALSE, warning=FALSE}
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
 library(tm) 
 library(tidyverse)
@@ -444,7 +502,7 @@ for (i in 2:50)
 
 
 
-```{r, echo=FALSE, warning=FALSE}
+```{r, echo=FALSE, warning=FALSE, include=FALSE}
 # fetching all directory
 file_list = Sys.glob('./ReutersC50/C50test/*/*.txt')
 
@@ -481,9 +539,7 @@ for (i in 2:50)
 }
 ```
 
-Only term frequency vector is used for making the predictions. 
-
-Adding IDF factors, along with RF model was giving poor prediction accuracy of just 6%.  
+  
 
 
 ```{r,echo=FALSE,warning=FALSE}
@@ -498,9 +554,6 @@ pr.out=prcomp(train_X , scale=TRUE, rank = 200)
 summary(pr.out)
 ```
 
-Going from 793 features to just 200 features with PCA.
-
-Explained proportion with 200 components is 60% which good enough dimensional reduction and without much loss in prediction accuracy.
 
 
 ```{r, echo=FALSE,warning=FALSE}
@@ -516,9 +569,6 @@ as.data.frame(table$table) %>% ggplot(aes(x=Prediction, y=Reference, fill=Freq))
 ```
 
 
-Train accuracy = 66%
-
-Baseline accuracy = 2% (50 classes)
 
 
 ```{r, echo=FALSE,warning=FALSE}
@@ -548,55 +598,95 @@ print(table$overall)
 as.data.frame(table$table) %>% ggplot(aes(x=Prediction, y=Reference, fill=Freq)) + geom_tile() 
 ```
 
-Test accuracy = 33.2%
 
-# Question 6
 
+Below is the summary of Steps followed:     
+1. Reading C50 train files
+2. Pre-Processing (train & test):      
+  * Created bag-of-words     
+  * Change all words to lowercase    
+  * Remove numbers and punctuations    
+  * Removed white spaces    
+  * Removed Stop words    
+  * Created term frequency matrix for the independent features    
+3. Modelling:   
+  * Created a y variable to find the author name for each document    
+  * Created Principal components for train features and selected the 1st 200 features as they were able to explain 60% of variance of y.    
+  * Multi-label Random Forest classification on the training set. Based on the confusion matrix table, we got train accuracy of 66%, while      our baseline accuracy = 2% (50 classes).   
+
+Note:    
+* Adding IDF factors, along with RF model was giving poor prediction accuracy of just 6%.     
+* Going from 793 features to just 200 features with PCA. Explained proportion with 200 components is 60% which good enough dimensional reduction and without much loss in prediction accuracy.     
+
+Results:   
+* Test accuracy achieved through Random Forest model with PCA features: and PCA: 33.2%       
+
+
+
+# Question 6 - Association rule mining
 ```{r, echo=FALSE, warning=FALSE}
 rm(list = ls())
-
 library(arules)
 library(arulesViz)
 groceries = read.transactions('groceries.txt', sep = ',', 
                               rm.duplicates = T, header = F,
                               format = 'basket')
-summary(groceries)
+#summary(groceries)
+itemFrequencyPlot(groceries, topN = 20)
+#barchart(summary(groceries)@itemSummary[1:20],xlab='Frequency of Items',main='Most Frequent Items')
 ```
+Several purchase patterns can be observed. For example:   
 
-```{r}
+* The most popular transactions were of milk, other vegetables,rolls/buns   
+* Interestingly soda is 4th most frequent with a count of atleast 1600.   
+* If someone buys citrus fruit/tropical fruit,root vegetables, they are likely to have bought other vegetables/whole milk as well   
+* Relatively many people buy curd, yogurt along with whole milk   
+
+
+```{r, echo=FALSE, warning=FALSE}
 grocery_rules = apriori(groceries, 
 	parameter=list(support=.005, confidence=.1, maxlen=5))
 ```
 
-```{r}
-plot(grocery_rules, measure = c("support", "confidence"), shading = 'lift')
+```{r, echo=FALSE, warning=FALSE}
+plot(grocery_rules, measure = c("support", "confidence"), shading = 'lift',jitter=0)
 ```
 
-Anything with support >0.1 is clearly an outlier. So, we will remove those rules.
+*Anything with support >0.1 is clearly an outlier. Because these are individual items which have higher occurency in the item list. So, we will remove those rules.    
 
-Looking at the graph above, Lift threshold should be 2 to make sure we evaluate only strongh associations
+*Looking at the graph above, Lift threshold should be 2 to make sure we evaluate only strong associations    
 
-```{r}
+
+```{r, echo=FALSE, warning=FALSE}
 x = subset(grocery_rules, subset=lift > 2 & support < 0.1)
-inspect(x)
+arules::inspect(sort(x, by = 'lift')[1:10])
+#arules::inspect(x)
 ```
+
+
 
 ### Association Graphs
 ```{r,echo=FALSE,warning=FALSE}
 plot(head(x, 40, by='lift'), method='graph')
 ```
-
-Bidirectional rules with high light
+Bidirectional rules with high lift and low support (which means highly complimentary items)   
 
 1. Ham -> whitebread & Whitebread -> Ham
-2. Hygnie Articles -> Napkins & Napkins -> Hygnie Articles
+2. Hygiene Articles -> Napkins & Napkins -> Hygiene Articles
+3. whipped/sour cream -> berries & berries -> whipped/sour cream
+4. Vegetables are brought together in general
+
+In the grocery store, there are different centers. For example, below are often brought together:   
+* Fruits/vegetables/dairy products  
+* Hygiene products
+
+Next steps:   
+* We can deep dive and check why white bread is bought only with Ham and not milk. It could be because of thresholds we have set, but it needs further speculation.   
 
 #### Association rule graph visualization in Gephi
+
+
 ```{r,echo=FALSE,warning=FALSE}
 saveAsGraph(head(x, n = 1000, by = "lift"), file = "grocery.graphml")
-
 knitr::include_graphics("gephi.png")
-
 ```
-
-
