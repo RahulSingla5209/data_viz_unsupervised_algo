@@ -6,6 +6,13 @@ library(quantmod)
 library(foreach)
 library(LICORS) 
 library(cluster)
+library(tm) 
+library(tidyverse)
+library(slam)
+library(proxy)
+library(e1071)
+library(arules)
+library(arulesViz)
 
 ##################################################
 ################ Problem 1: Green buildings ######
@@ -345,4 +352,138 @@ hist(final_cluster$cluster)
 ############ Problem 5: Author Attribution #######
 ##################################################
 
+readerPlain = function(fname){
+  readPlain(elem=list(content=readLines(fname)), 
+            id=fname, language='en')}
+
+## apply to all of Simon Cowell's articles
+## (probably not THE Simon Cowell: https://twitter.com/simoncowell)
+## "globbing" = expanding wild cards in filename paths
+file_list = Sys.glob('ReutersC50/C50train/*/*.txt')
+file_read = lapply(file_list, readerPlain) 
+
+file_read
+
+# Clean up the file names
+# no doubt the stringr library would be nicer here.
+# this is just what I hacked together
+mynames = file_list %>%
+  { strsplit(., '/', fixed=TRUE) } %>%
+  { lapply(., tail, n=2) } %>%
+  { lapply(., paste0, collapse = '') } %>%
+  unlist
+
+# Rename the articles
+mynames
+names(file_read) = mynames
+
+## once you have documents in a vector, you 
+## create a text mining 'corpus' with: 
+documents_raw = Corpus(VectorSource(file_read))
+
+## Some pre-processing/tokenization steps.
+## tm_map just maps some function to every document in the corpus
+my_documents = documents_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+## Remove stopwords.  Always be careful with this: one person's trash is another one's treasure.
+# 2 example built-in sets of stop words
+stopwords("en")
+stopwords("SMART")
+# let's just use the "basic English" stop words
+my_documents = tm_map(my_documents, content_transformer(removeWords), stopwords("en"))
+
+
+## create a doc-term-matrix from the corpus
+dtm = DocumentTermMatrix(my_documents)
+dtm # some basic summary statistics
+inspect(dtm[1:10,1:20])
+
+
+dtm = removeSparseTerms(dtm, 0.98)
+dtm
+
+# construct TF IDF weights -- might be useful if we wanted to use these
+# as features in a predictive model
+# tfidf_dtm = weightTfIdf(dtm)
+
+# creating test set
+X = data.frame(as.matrix(dtm))
+y = rep(1:50,each=50)
+dim(X)
+
+# building a naive bayes model
+
+# AP's multinomial probability vector
+# Notice the smoothing factor
+# Why?
+smooth_count = 1/nrow(X)
+nb_model = naiveBayes(x=X, y=y, laplace = smooth_count)
+train_predict = predict(nb_model, X)
+
+sum(train_predict == y)/length(y)
+
+# test set
+file_list = Sys.glob('ReutersC50/C50test/*/*.txt')
+file_read = lapply(file_list, readerPlain) 
+
+mynames = file_list %>%
+  { strsplit(., '/', fixed=TRUE) } %>%
+  { lapply(., tail, n=2) } %>%
+  { lapply(., paste0, collapse = '') } %>%
+  unlist
+
+names(file_read) = mynames
+
+documents_raw = Corpus(VectorSource(file_read))
+
+my_documents = documents_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+stopwords("en")
+stopwords("SMART")
+
+my_documents = tm_map(my_documents, content_transformer(removeWords), stopwords("en"))
+
+dtm = DocumentTermMatrix(my_documents)
+dtm # some basic summary statistics
+inspect(dtm[1:10,1:20])
+
+X_test = data.frame(as.matrix(dtm))
+y_test = rep(1:50,each=50)
+dim(X_test)
+
+X_test = X[, colnames(X)]
+dim(X_test)
+
+nb_model = naiveBayes(x=X_test, y=y_test, laplace = smooth_count)
+test_predict = predict(nb_model, X_test)
+accuracy = sum(test_predict == y_test)/length(y_test)
+accuracy
+
+
+##################################################
+############ Problem 6: Associations Rule ########
+##################################################
+groceries = read.transactions('groceries.txt', sep = ',')
+groceries
+
+grocery_rules = apriori(groceries, 
+                     parameter=list(support=.005, confidence=.1, maxlen=5))
+
+plot(grocery_rules, measure = c("support", "lift"), shading = "confidence")
+
+grocery_rules_subset = inspect(subset(grocery_rules, subset=lift > 2 & support < 0.2))
+  
+# plot(grocery_rules, method='two-key plot')
+summary(grocery_rules_subset)
+plot(grocery_rules, method = 'graph')
+
+saveAsGraph(grocery_rules_subset, file = "grocery.graphml")
 
