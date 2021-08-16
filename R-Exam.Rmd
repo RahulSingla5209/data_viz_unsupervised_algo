@@ -136,33 +136,78 @@ df1 %>%
 
 # Question 3
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 rm(list = ls())
 
 
 library(quantmod)
 library(mosaic)
 
-#stocks chosen - 
-# Low Risk - Apple, Google, Texas Instruments 
-# Medium Risk - Tesla
+## GOVT - Bond ETF to minimize our risks
+## ISCV - Small Cap Value stock to expose us to the equity but with minimal risks
+## VT - Large Cap Growth stock with the maximum holding to increase our returns
+## IWS - Mid Cap Value stock with the maximum holding find a balance between growth and stability
 
-mystocks = c("AAPL",  "GOOGL", "TXN", "TSLA")
+mystocks = c("GOVT", "ISCV", "VT", "IWS")
 getSymbols(mystocks, from = "2016-01-01")
 
 #adjust for stock splits and dividends 
-apple = adjustOHLC(AAPL)
-google = adjustOHLC(GOOGL)
-ti = adjustOHLC(TXN)
-tesla = adjustOHLC(TSLA)
+govt = adjustOHLC(GOVT)
+iscv = adjustOHLC(ISCV)
+vt = adjustOHLC(VT)
+iws = adjustOHLC(IWS)
 
-df = cbind(ClCl(apple), ClCl(google), ClCl(ti), 
-           ClCl(tesla))
+df = cbind(ClCl(govt), ClCl(iscv), ClCl(vt), 
+           ClCl(iws))
 all_returns = as.matrix(na.omit(df))
 ```
 
 
 ## Portofolio 1
+
+Customers in their retirement will want to have a stable investment and not go for a lot of risk based investments.
+We will invest the maximum in bonds and then Large Cap. Exposure to Mid and Small cap will be low.
+
+```{r, echo=FALSE}
+holding = 100000 #100 Grand
+n_days = 20
+
+protfolio1 = c(0.5, 0.05, 0.25, 0.20)
+
+n_simulations = 30000
+
+wealth_tracker = rep(0, n_days)
+all_simulation = NULL
+
+for (simulation in 1:n_simulations)
+{
+  current_holding = holding
+  wealth_tracker = rep(0, n_days)
+  for (i in 1: n_days)
+  {
+    holdings = current_holding * protfolio1
+    r = resample(all_returns, size = 1)
+    total_holding = sum((1 + r) * holdings)
+    wealth_tracker[i] = total_holding
+    current_holding = total_holding
+  }
+  all_simulation = rbind(all_simulation, wealth_tracker)
+}
+
+wealth_gain = all_simulation[, 20] - holding
+hist(wealth_gain, breaks = 1000, xlim = c(-10000, 10000), 
+     main = "Gain for Portofolio 1")
+abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
+text(quantile(wealth_gain, prob=0.05) - 1500, 275, "VaR (5%)", col = 'red')
+```
+
+
+`r quantile(wealth_gain, prob=0.05)`
+
+## Portofolio 2
+
+Customers in their middle age will invest equally in equity and stocks. Thus they would prefer an equitable distribution.
+
 ```{r, echo=FALSE}
 holding = 100000 #100 Grand
 n_days = 20
@@ -190,56 +235,24 @@ for (simulation in 1:n_simulations)
 }
 
 wealth_gain = all_simulation[, 20] - holding
-hist(wealth_gain, breaks = 1000, xlim = c(-40000, 40000), 
-     main = "Gain for Portofolio 1")
-abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
-```
-
-
-`r quantile(wealth_gain, prob=0.05)`
-
-## Portofolio 2
-```{r, echo=FALSE}
-holding = 100000 #100 Grand
-n_days = 20
-
-protfolio1 = c(0.2, 0.15, 0.15, 0.5)
-
-n_simulations = 30000
-
-wealth_tracker = rep(0, n_days)
-all_simulation = NULL
-
-for (simulation in 1:n_simulations)
-{
-  current_holding = holding
-  wealth_tracker = rep(0, n_days)
-  for (i in 1: n_days)
-  {
-    holdings = current_holding * protfolio1
-    r = resample(all_returns, size = 1)
-    total_holding = sum((1 + r) * holdings)
-    wealth_tracker[i] = total_holding
-    current_holding = total_holding
-  }
-  all_simulation = rbind(all_simulation, wealth_tracker)
-}
-
-wealth_gain = all_simulation[, 20] - holding
-hist(wealth_gain, breaks = 1000, xlim = c(-40000, 40000), 
+hist(wealth_gain, breaks = 1000, xlim = c(-10000, 10000), 
      main = "Gain for Portofolio 2")
 abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
+text(quantile(wealth_gain, prob=0.05) - 1500, 275, "VaR (5%)", col = 'red')
 ```
 
 
 `r quantile(wealth_gain, prob=0.05)`
 
 ## Portofolio 3
+
+young customers would invest heavily in small cap and medium cap ETFs. And will have a minimal exposure in Bonds.
+
 ```{r, echo=FALSE}
 holding = 100000 #100 Grand
 n_days = 20
 
-protfolio1 = c(0.2, 0.2, 0.5, 0.1)
+protfolio1 = c(0.05, 0.5, 0.15, 0.3)
 
 n_simulations = 30000
 
@@ -262,9 +275,10 @@ for (simulation in 1:n_simulations)
 }
 
 wealth_gain = all_simulation[, 20] - holding
-hist(wealth_gain, breaks = 1000, xlim = c(-40000, 40000), 
+hist(wealth_gain, breaks = 1000, xlim = c(-10000, 10000), 
      main = "Gain for Portofolio 3")
 abline(v = quantile(wealth_gain, prob=0.05), col = 'red')
+text(quantile(wealth_gain, prob=0.05) + 1500, 600, "VaR (5%)", col = 'red')
 ```
 
 
