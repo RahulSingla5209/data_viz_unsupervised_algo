@@ -1,0 +1,192 @@
+---
+title: "Author attribution"
+author: "Ramya Desineedi"
+date: "15/08/2021"
+output: html_document
+---
+
+## **Author attribution**  
+
+### **Problem**
+Revisit the Reuters C50 corpus that we explored in class. Your task is to build the best model you can, using any combination of tools you see fit, for predicting the author of an article on the basis of that article's textual content. Describe clearly what models you are using, how you constructed features, and so forth. Yes, this is a supervised learning task, but it potentially draws on a lot of what you know about unsupervised learning, since constructing features for a document might involve dimensionality reduction.
+
+In the C50Reuters directory, you have 50 articles from each of 50 different authors (one author per directory). Use this Reutersing data (and this data alone) to build the model. Then apply your model to predict the authorship of the articles in the C50test directory, which is about the same size as the Reutersing set. Describe your data pre-processing and analysis pipeline in detail.
+
+### **Analysis**
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+library(tm) 
+library(magrittr)
+library(slam)
+library(proxy)
+library(caret)
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library('e1071')
+library(tm) 
+library(tidyverse)
+library(Rcpp) 
+```
+
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+#Defining reader plain function 
+readerPlain = function(fname){
+				readPlain(elem=list(content=readLines(fname)), 
+							id=fname, language='en') }
+```
+
+```{r}							
+#Reading all folders in Reuters data
+file_list=Sys.glob('/Users/ramya/Desktop/STA380/data/ReutersC50/C50Reuters/*/*.txt')
+
+Reuters = lapply(file_list, readerPlain) 
+
+# Clean up the file names
+mynames = file_list %>%
+	{ strsplit(., '/', fixed=TRUE) } %>%
+	{ lapply(., tail, n=2) } %>%
+	{ lapply(., paste0, collapse = '') } %>%
+	unlist
+```
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+# Rename the articles
+mynames
+names(Reuters) = mynames
+```
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+## once you have documents in a vector, you 
+## create a text mining 'corpus' with: 
+documents_raw = Corpus(VectorSource(Reuters))
+``` 
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+## Some pre-processing/tokenization steps.
+## tm_map just maps some function to every document in the corpus
+my_documents = documents_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+```
+
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+## Remove stopwords # 2 example built-in sets of stop words
+stopwords("en")
+stopwords("SMART")
+# let's just use the "basic English" stop words
+my_documents = tm_map(my_documents, content_transformer(removeWords), stopwords("en"))
+summary(my_documents)
+```
+
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+library(Rcpp)
+## create a doc-term-matrix from the corpus
+DTM_Reuters = TermDocumentMatrix(my_documents)
+DTM_Reuters # some basic summary statistics
+```
+
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+## ...find words with greater than a min count...
+findFreqTerms(DTM_Reuters, 50)
+
+## ...or find words whose count correlates with a specified word.
+# the top entries here look like they go with "genetic"
+findAssocs(DTM_Reuters, "genetic", .5)
+
+## Finally, let's drop those terms that only occur in one or two documents
+## This is a common step: the noise of the "long tail" (rare terms)
+## can be huge, and there is nothing to learn if a term occured once.
+## Below removes those terms that have count 0 in >95% of docs.  
+## Probably a bit stringent here... but only 50 docs!
+DTM_Reuters = removeSparseTerms(DTM_Reuters, 0.95)
+DTM_Reuters # now ~ 1000 terms (versus ~3000 before)
+
+# construct TF IDF weights -- might be useful if we wanted to use these
+# as features in a predictive model
+tfidf_Reuters = weightTfIdf(DTM_Reuters)
+```
+
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+# cosine similarity
+# first by hand -- this is the formula we saw in the slides
+i = 15
+j = 16
+sum(tfidf_Reuters[i,] * (tfidf_Reuters[j,]))/(sqrt(sum(tfidf_Reuters[i,]^2)) * sqrt(sum(tfidf_Reuters[j,]^2)))
+
+# the proxy library has a built-in function to calculate cosine distance
+# define the cosine distance matrix for our DTM using this function
+cosine_dist_mat = proxy::dist(as.matrix(tfidf_Reuters), method='cosine')
+tree_Reuters = hclust(cosine_dist_mat)
+plot(tree_Reuters)
+```
+
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+clust5 = cutree(tree_Reuters, k=5)
+
+# inspect the clusters
+which(clust5 == 3)
+
+# These all look to be about Scottish Amicable
+content(Reuters[[12]])
+content(Reuters[[13]])
+content(Reuters[[21]])
+```
+
+
+```{r, echo = FALSE,warning=FALSE,include=FALSE}
+####
+# Dimensionality reduction
+####
+
+# Now PCA on term frequencies
+X = as.matrix(tfidf_Reuters)
+summary(colSums(X))
+scrub_cols = which(colSums(X) == 0)
+X = X[,-scrub_cols]
+
+pca_Reuters = prcomp(X, scale=TRUE)
+
+# looks like 15 or so summaries get us ~50% of the variation in over 1000 features
+summary(pca_Reuters) 
+
+# Look at the loadings
+pca_Reuters$rotation[order(abs(pca_Reuters$rotation[,1]),decreasing=TRUE),1][1:25]
+pca_Reuters$rotation[order(abs(pca_Reuters$rotation[,2]),decreasing=TRUE),2][1:25]
+
+
+## Look at the first two PCs..
+# We've now turned each document into a single pair of numbers -- massive dimensionality reduction
+pca_Reuters$x[,1:2]
+
+plot(pca_Reuters$x[,1:2], xlab="PCA 1 direction", ylab="PCA 2 direction", bty="n",
+     type='n')
+text(pca_Reuters$x[,1:2], labels = 1:length(Reuters), cex=0.7)
+
+# 46 and 48 are pretty close
+# Both about Scottish Amicable
+content(Reuters[[46]])
+content(Reuters[[48]])
+
+# 25 and 26 are pretty close
+# Both about genetic testing
+content(Reuters[[25]])
+content(Reuters[[26]])
+
+# 10 and 11 pretty close
+# Both about Ladbroke's merger
+content(Reuters[[10]])
+content(Reuters[[11]])
+
+# Conclusion: even just these two-number summaries still preserve a lot of information
+
+```
+

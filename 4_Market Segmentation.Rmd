@@ -1,0 +1,164 @@
+---
+title: "Market Segmentation"
+author: "Ramya Desineedi"
+date: "15/08/2021"
+output: pdf_document
+---
+
+# Question 4 - Market segmentation
+```{r, echo=FALSE, warning= FALSE}
+library(ggplot2)
+library(LICORS)  # for kmeans++
+library(foreach)
+library(mosaic)
+library(tidyverse)
+library(cluster)
+library(factoextra)
+library(gridExtra)
+
+# clear the environment
+rm(list = ls()) 
+
+setwd("/Users/ramya/Desktop/STA380/data/")
+getwd()
+
+# Read the social marketing data from the csv file
+social_marketing = read.csv('social_marketing.csv', header=TRUE)
+
+# Finding the summary of the data frame
+summary(social_marketing)
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# Dropping Chatter, Adult and Spam columns 
+data = subset(social_marketing,select = -c(1,36,37))
+data = na.omit(data)
+head(data)
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# We are using elbow method to find k for #clusters for k-means algorithm
+# Number of clusters vs Total within sum of squares
+fviz_nbclust(data, kmeans, method = "wss")
+```
+Taking 7 clusters from elbow plot
+
+```{r, echo=FALSE, warning= FALSE}
+# Run k means with best K from elbow plot and Gap statistic plot
+clust1 = kmeans(na.omit(data), centers=7, nstart = 25)
+str(clust1)
+
+# What are the clusters?
+clust1$center  # not super helpful
+
+# Which features are in which clusters?
+which(clust1$cluster == 1)
+which(clust1$cluster == 2)
+which(clust1$cluster == 3)
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# Plot the clusters of the observations 
+fviz_cluster(clust1, data)
+plot1 <- fviz_cluster(clust1, geom = "point", data = data) + ggtitle("k = 2")
+plot2 <- fviz_cluster(clust2, geom = "point", data = data) + ggtitle("k = 2")
+
+# A few plotdatawith cluster membership shown
+# qplot is in the ggplot2 library
+qplot(personal_fitness, fashion, data=social_marketing, color=factor(clust1$cluster))
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# Using kmeans++ initialization
+clust2 = kmeanspp(data, k=7, nstart=25)
+
+clust2$center[1,]
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# Which cars are in which clusters?
+which(clust2$cluster == 1)
+which(clust2$cluster == 2)
+which(clust2$cluster == 3)
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# Compare versus within-cluster average distances from the first run
+clust1$withinss  
+clust2$withinss
+sum(clust1$withinss)
+sum(clust2$withinss)
+clust1$tot.withinss
+clust2$tot.withinss
+clust1$betweenss
+clust2$betweenss
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+#### HIERARCHIAL CLUSTERING 
+# Form a pairwise distance matrix using the dist function
+marketing_distance_matrix = dist(data, method='euclidean')
+
+
+# Now run hierarchical clustering
+hier_marketing = hclust(marketing_distance_matrix, method='average')
+
+
+# Plot the dendrogram
+plot(hier_marketing, cex=0.6)
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# Cut the tree into 7 clusters
+cluster1 = cutree(hier_marketing, k=7)
+summary(factor(cluster1))
+
+# Examine the cluster members
+which(cluster1 == 1)
+which(cluster1 == 2)
+which(cluster1 == 3)
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# Using max ("complete") linkage instead
+hier_marketing2 = hclust(marketing_distance_matrix, method='complete')
+
+# Plot the dendrogram
+plot(hier_marketing2, cex=0.8)
+cluster2 = cutree(hier_marketing2, k=7)
+summary(factor(cluster2))
+
+# Examine the cluster members
+which(cluster2 == 1)
+which(cluster2 == 2)
+which(cluster2 == 3)
+```
+
+
+```{r, echo=FALSE, warning= FALSE}
+# First form a pairwise distance matrix
+distance_between_markets = dist(data)
+
+# Now run hierarchical clustering
+h1 = hclust(distance_between_markets, method='complete')
+
+# Cut the tree into 10 clusters
+cluster1 = cutree(h1, k=10)
+summary(factor(cluster1))
+
+# Examine the cluster members
+which(cluster1 == 9)
+
+# Plot the dendrogram
+plot(h1, cex=0.3)
+```
+

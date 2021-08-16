@@ -1,0 +1,75 @@
+---
+title: "R Exam_other questions"
+author: "Ramya Desineedi"
+date: "29/07/2021"
+output: html_document
+---
+
+
+
+
+# Question 6 - Association rule mining
+```{r, echo=FALSE, warning= FALSE}
+#rm(list = ls())
+setwd("/Users/ramya/Desktop/STA380/data/")
+getwd()
+
+# Loading package
+library(arules)
+library(arulesViz)
+
+# Loading data
+groceries = read.transactions("groceries.txt", sep = ',',
+                              rm.duplicates = T, header = F,
+                              format = 'basket')
+summary(groceries)
+nrow(groceries)
+```
+
+### Item Frequency Plot
+```{r, echo=FALSE, warning= FALSE}
+itemFrequencyPlot(groceries, topN = 20)
+```
+
+
+
+### Correlation analysis
+```{r, echo=FALSE, warning= FALSE}
+freq.itemsets <- eclat(groceries, parameter=list(supp=0.075, maxlen=15))
+inspect(freq.itemsets)
+```
+
+
+### Model Association Rules
+```{r, echo=FALSE, warning= FALSE}
+rules <- apriori(groceries, parameter = list(support = 0.01, confidence = 0.2, minlen = 2))
+summary(rules)
+inspect(sort(sort(rules, by ="support"),by ="confidence"))
+plot(rules, measure=c("support", "confidence"), shading="lift", interactive=FALSE)
+```
+### Visualising the results
+```{r, echo=FALSE, warning= FALSE}
+inspect(sort(rules, by = 'lift')[1:10])
+plot(rules, method = "graph", 
+     measure = "confidence", shading = "lift")
+```
+
+### Model Association Rules - after tuning parameters
+```{r, echo=FALSE, warning= FALSE}
+rules <- apriori(groceries, parameter = list(support = 0.01, confidence = 0.5, minlen = 2))
+summary(rules)
+inspect(sort(sort(rules, by ="support"),by ="confidence"))
+plot(rules, measure=c("support", "confidence"), shading="lift", interactive=FALSE)
+```
+
+
+Taking most common products and building rules based on that.
+
+### Visualising the results - after tuning parameters
+```{r, echo=FALSE, warning= FALSE}
+inspect(sort(rules, by = 'lift')[1:10])
+plot(rules, method = "graph", 
+     measure = "confidence", shading = "lift")
+```
+
+
