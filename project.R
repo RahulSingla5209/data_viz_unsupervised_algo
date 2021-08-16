@@ -80,6 +80,13 @@ ggplot(data=non_renovated_a_am_sum, aes(x=age_bucket, y=median_rent, fill=green_
   ggtitle('Median rent of non-renovated, class A and with amenities green and non-green buildings by age')
 
 
+non_renovated_a_am_cnt = non_renovated_a_am %>% group_by(green_rating) %>% count(age_buckets) 
+
+ggplot(data=non_renovated_a_am_cnt, aes(x=age_buckets, y=n, fill=green_rating)) +
+  geom_bar(stat="identity", position=position_dodge()) +
+  ggtitle('Count rent of non-renovated, class A and with amenities green and non-green buildings by age')
+
+
 # Break even calculation
 area = 250000
 investment = 100000000
@@ -93,6 +100,19 @@ green_rent = median(subset(green.buildings, (green_rating == 1 & age <= 30 & ren
 
 paste0('Non-green break even years - ', round(investment/area/non_green_rent, 2))
 paste0('Green break even years - ', round(investment*(1 + green.premium)/area/green_rent, 2))
+
+# getting extra rent for green buildings incremental by age group
+stacked = base::merge(subset(non_renovated_a_am_sum, green_rating == 0), 
+      subset(non_renovated_a_am_sum, green_rating == 1),
+      by = c('age_bucket'))
+stacked['non_green_rent'] = area*stacked['median_rent.x']
+stacked['green_rent'] = area*stacked['median_rent.y']
+stacked = subset(stacked, age_bucket != '30+')
+stacked['rent_diff'] = stacked['green_rent'] - stacked['non_green_rent']
+
+ggplot(data=stacked, aes(x=age_bucket, y=rent_diff,)) +
+  geom_bar(stat="identity") +
+  ggtitle('Different in rent of green vs non green buildings by differnet')
 
 
 ##################################################
@@ -473,6 +493,8 @@ accuracy
 ##################################################
 groceries = read.transactions('groceries.txt', sep = ',')
 groceries
+x = summary(groceries)
+barchart(x@itemSummary[1:5])
 
 grocery_rules = apriori(groceries, 
                      parameter=list(support=.005, confidence=.1, maxlen=5))
