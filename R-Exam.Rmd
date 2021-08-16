@@ -1,11 +1,15 @@
 ---
 title: "R Exam"
 output: pdf_document
+author: "Rahul Singla | Vishal Gupta | Prakhar Bansal | Ramya Madhuri Desineedi"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+
+https://github.com/RahulSingla5209/data_viz_unsupervised_algo
 
 # Question 1
 ```{r, echo=FALSE}
@@ -297,13 +301,16 @@ df = df[, -1]
 
 number of followers - `r nrow(df)`
 
+
+We will explore both k-Means clustering and Hierarchical clustering. Based on insights, we will choose the methodlogy.
+
 ## K-Mean clustering
 
-K-Means good when the number of samples is huge
+K-Means++ good when the number of samples is huge.
 
 No scaling will be done because the unit of all the columns is same.
 
-Different K and different distance metrics will be explored, starting with K = 5 and Euclidean distance metric.
+Different K and different distance metrics will be explored, starting with K = 2 and Euclidean distance metric.
 
 ```{r, echo=FALSE}
 clusters = c(2: 15)
@@ -322,16 +329,34 @@ plot(clusters, between_SSE)
 
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE}
 set.seed(123)
 clust1 = kmeanspp(df, 4)
 (clust1$centers - colMeans(df, na.rm = T))/apply(df, 2, sd)
+
+final_cluster = clust1
+
+cluster_mean = t(data.frame(final_cluster$centers))
+cluster_mean
+cluster1 = cluster_mean[abs(cluster_mean[,1]) >=  0.2*max(abs(cluster_mean[,1])), 1]
+cluster2 = cluster_mean[abs(cluster_mean[,2]) >=  0.2*max(abs(cluster_mean[,2])), 2]
+cluster3 = cluster_mean[abs(cluster_mean[,3]) >=  0.2*max(abs(cluster_mean[,3])), 3]
+cluster4 = cluster_mean[abs(cluster_mean[,4]) >=  0.2*max(abs(cluster_mean[,4])), 4]
+# 20% cutoff  is taken 
+barplot(cluster1, las = 2, horiz = T)
+barplot(cluster2, las = 2, horiz = T)
+barplot(cluster3, las = 2, horiz = T)
+barplot(cluster4, las = 2, horiz = T)
+
 ```
 
 Groups identified -
-1. Teen girls? - High shopping, fashion, school, chatter, photosharing
+1. Teen girls - High - shopping, fashion, school, chatter, photosharing
+
 2. Fitness freaks - high - Outdoors, personal_fitness , health_nutirition
-3. Old person - religion, adult, food
+
+3. Family/ Middle aged person - high - religion, adult, food
+
 4. college students - high - college_uni, online_gaming, sport_playing
 
 
@@ -360,12 +385,13 @@ summary(factor(cluster2))
 ```
 
 
-I think KMeans clustering provides good enough insights.
+## Insights
 
+H-clustering is biased for one cluster and is not giving any useful insights.
 
 # Question 5
 
-```{r}
+```{r, echo=FALSE, warning=FALSE}
 rm(list = ls())
 library(tm) 
 library(tidyverse)
@@ -418,7 +444,7 @@ for (i in 2:50)
 
 
 
-```{r}
+```{r, echo=FALSE, warning=FALSE}
 # fetching all directory
 file_list = Sys.glob('./ReutersC50/C50test/*/*.txt')
 
@@ -443,7 +469,7 @@ my_documents = tm_map(my_documents,
 # Create Term frequency matrix. Each row is term frequncy vector of single  document 
 DTM = DocumentTermMatrix(my_documents)
 # Current Sparisty is 99%. Let's remove long tail of infrequently used words
-DTM = removeSparseTerms(DTM, 0.95)
+DTM = removeSparseTerms(DTM, 0.975)
 
 test_X = as.matrix(DTM)
 
@@ -456,22 +482,23 @@ for (i in 2:50)
 ```
 
 
-```{r}
+```{r,echo=FALSE,warning=FALSE}
 scrub_cols = which(colSums(train_X) == 0)
 scrub_cols = which(sapply(as.data.frame(train_X), function(x) var(x, na.rm = T)) == 0)
 
 train_X = train_X[,-scrub_cols]
 ```
 
-```{r}
+```{r,echo=FALSE,warning=FALSE}
 pr.out=prcomp(train_X , scale=TRUE, rank = 200)
+summary(pr.out)
 ```
 
 
 ```{r}
 rf = randomForest(x = pr.out$x, y = as.factor(train_Y), 
                   type = 'classification', maxnodes = 300)
-confusionMatrix(rf$predicted, as.factor(train_Y), 
+table = confusionMatrix(rf$predicted, as.factor(train_Y), 
                 positive = NULL, 
                 dnn = c("Prediction", "Reference"))
 ```
