@@ -1,0 +1,619 @@
+---
+title: "STA 380 Part2"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+green_df = read.csv('greenbuildings.csv')
+green_df = na.omit(green_df)
+str(green_df)
+```
+
+
+```{r}
+boxplot(Rent~green_rating,data=green_df)
+```
+The median of green building is higher than non-green buildings. However that can not be said in general.
+
+```{r}
+boxplot(leasing_rate~green_rating,data=green_df)
+```
+
+Removing buildings with less than 10% leasing rate.
+
+```{r}
+cluster_count = green_df %>% group_by(cluster)
+cluster_count = cluster_count %>% 
+  summarise(propert_count = length(CS_PropertyID),
+                            property_median_rent = median(Rent),
+                            property_avg_rent = mean(Rent),
+                            cluster_median_rent = median(cluster_rent),
+                            green_rating = sum(green_rating))
+```
+
+Few clusters have no properties with green ratings as 1
+
+```{r}
+cluster_gr_grouped = green_df %>% group_by(cluster,green_rating)
+cluster_gr_grouped = cluster_gr_grouped %>% 
+  summarise(propert_count = length(CS_PropertyID),
+                            property_median_rent = median(Rent),
+                            property_avg_rent = mean(Rent),
+                            cluster_median_rent = median(cluster_rent),
+                            green_rating = sum(green_rating))
+```
+
+Cluster Wise Median rent of a property is different. For some clusters median price of non-green building is higher.
+
+```{r}
+green_df2 = green_df[(green_df$empl_gr>-20) & (green_df$empl_gr<20),]
+
+ggplot(green_df2, aes(x=empl_gr, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=leasing_rate, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=stories, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+green_df2 = green_df[green_df$stories==15,]
+ggplot(green_df2, aes(x=stories, y=Rent)) +
+  geom_boxplot(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=age, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=renovated, y=Rent)) +
+  geom_boxplot(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=class_a, y=Rent)) +
+  geom_boxplot(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=class_b, y=Rent)) +
+  geom_boxplot(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=net, y=Rent)) +
+  geom_boxplot(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=amenities, y=Rent)) +
+  geom_boxplot(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=cd_total_07, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=hd_total07, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=total_dd_07, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=Precipitation, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=Gas_Costs, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=Electricity_Costs, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+ggplot(green_df, aes(x=cluster_rent, y=Rent)) +
+  geom_point(aes(colour = factor(green_rating))) +facet_wrap("green_rating")
+```
+
+```{r}
+median_green = median(green_df2[green_df2$green_rating==1,]$Rent)
+median_nongreen = median(green_df2[green_df2$green_rating==0,]$Rent)
+
+cat('Median for green 15-storied building',median_green)
+cat("\n")
+cat('Median for non-green 15-storied building',median_nongreen)
+```
+
+
+The developer wants to buy a 15-storey building and the mean values of 15-storey buildings are different from the overall mean.
+
+The median for a green 15-storied building is 36.955 and for non-green it is 24.36. So ROI for a green building of 15 storied will be:
+
+```{r}
+cost_nongreen = 5000000/(24.36*250000)
+cost_green = 5000000/(36.955*250000)
+
+cat('Total time to recuperate cost for non-green property:',round(cost_nongreen*10,1),'years')
+cat("\n")
+cat('Total time to recuperate cost for green property:',round(cost_green*10,1),'years')
+```
+
+
+```{r}
+model = lm(Rent~.,green_df)
+summary(model)
+anova(model)
+```
+
+
+# Q3
+```{r}
+library(mosaic)
+library(quantmod)
+library(foreach)
+
+mystocks = c("GOVT", "ISCV", "VT", "IWS")
+```
+
+## GOVT - Bond ETF to minimize our risks
+## ISCV - Small Cap Value stock to expose us to the equity but with minimal risks
+## VT - Large Cap Growth stock with the maximum holding to increase our returns
+## IWS - Mid Cap Value stock with the maximum holding find a balance between growth and stability
+
+```{r}
+myprices = getSymbols(mystocks, from = "2015-01-01")
+
+for(ticker in mystocks) {
+  expr = paste0(ticker, "a = adjustOHLC(", ticker, ")")
+  eval(parse(text=expr))
+}
+
+# Combine all the returns in a matrix
+all_returns = cbind(	ClCl(GOVTa),
+                     ClCl(ISCVa),
+                     ClCl(IWSa),
+                     ClCl(VTa))
+all_returns = as.matrix(na.omit(all_returns))
+
+# Compute the returns from the closing prices
+pairs(all_returns)
+```
+
+
+## Portfolio 1
+Customers in their retirement will want to have a stable investment and not go for a lot of risk based investments.
+We will invest the maximum in bonds and then Large Cap. Exposure to Mid and Small cap will be low.
+```{r}
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.5, 0.05, 0.25, 0.20)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+
+# each row is a simulated trajectory
+# each column is a data
+hist(sim1[,n_days], 25)
+
+# 5% value at risk:
+cat('5% VaR:',quantile(sim1[,n_days]- initial_wealth, prob=0.05))
+plot(wealthtracker, type='l')
+```
+
+## Portfolio 2
+Customers in their middle age will invest equally in equity and stocks. Thus they would prefer an equitable distribution.
+```{r}
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.25, 0.25, 0.25, 0.25)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+
+# each row is a simulated trajectory
+# each column is a data
+hist(sim1[,n_days], 25)
+
+# 5% value at risk:
+cat('5% VaR:',quantile(sim1[,n_days]- initial_wealth, prob=0.05))
+plot(wealthtracker, type='l')
+```
+
+## Portfolio 3
+young customers would invest heavily in small cap and medium cap ETFs. And will have a minimal exposure in Bonds.
+```{r}
+initial_wealth = 100000
+sim1 = foreach(i=1:5000, .combine='rbind') %do% {
+  total_wealth = initial_wealth
+  weights = c(0.05, 0.5, 0.15, 0.3)
+  holdings = weights * total_wealth
+  n_days = 20
+  wealthtracker = rep(0, n_days)
+  for(today in 1:n_days) {
+    return.today = resample(all_returns, 1, orig.ids=FALSE)
+    holdings = holdings + holdings*return.today
+    total_wealth = sum(holdings)
+    wealthtracker[today] = total_wealth
+    holdings = weights * total_wealth
+  }
+  wealthtracker
+}
+
+# each row is a simulated trajectory
+# each column is a data
+hist(sim1[,n_days], 25)
+
+# 5% value at risk:
+cat('5% VaR:',quantile(sim1[,n_days]- initial_wealth, prob=0.05))
+plot(wealthtracker, type='l')
+```
+
+# Q4
+```{r}
+library(ggplot2)
+library(LICORS)  # for kmeans++
+library(foreach)
+library(mosaic)
+library(dplyr)
+library(cluster)
+library(factoextra)
+
+
+sm = read.csv('social_marketing.csv', header=TRUE)
+
+summary(sm)
+
+# Center and scale the data
+X = sm[,(2:37)]
+#X = scale(X, center=TRUE, scale=TRUE)
+
+sm_pca = prcomp(X, rank=10, scale=TRUE)
+head(sm_pca$rotation)
+summary(sm_pca)
+
+##10 PCA is only explaining 60% variance
+
+# Extract the centers and scales from the rescaled data (which are named attributes)
+mu = attr(X,"scaled:center")
+sigma = attr(X,"scaled:scale")
+
+## Elbow Plot to find optimal K
+k_grid = seq(2, 30, by=1)
+SSE_grid = foreach(k = k_grid, .combine='c') %do% {
+  cluster_k = kmeans(X, k, nstart=50)
+  cluster_k$tot.withinss
+}
+
+plot(k_grid, SSE_grid)
+
+## Selecting K with Ch Index
+N = nrow(X)
+CH_grid = foreach(k = k_grid, .combine='c') %do% {
+  cluster_k = kmeans(X, k, nstart=50)
+  W = cluster_k$tot.withinss
+  B = cluster_k$betweenss
+  CH = (B/W)*((N-k)/(k-1))
+  CH
+}
+
+plot(k_grid,CH_grid)
+
+
+# Using kmeans++ initialization and 6 clusters
+clust = kmeanspp(X, k=6, nstart=25)
+
+# profiling of Clusters
+sm['cluster'] = clust$cluster
+
+variable_profiling = sm[,c(-1)] %>% 
+  group_by(cluster) %>% 
+  summarise(across(everything(), sum))
+
+plot = fviz_cluster(clust, data = sm[,c(-1)],ellipse.type ="convex")
+
+
+## Using 4 Clusters
+clust4 = kmeanspp(X, k=4, nstart=50)
+plot = fviz_cluster(clust4, data = sm[,c(-1)],ellipse.type ="convex")
+plot
+
+sm['cluster'] = clust4$cluster
+
+variable_profiling = sm[,c(-1)] %>% 
+  group_by(cluster) %>% 
+  summarise(across(everything(), list(sum=sum,mean=mean)))
+
+sil <- silhouette(clust4$cluster, dist(sm[,c(-1)]))
+fviz_silhouette(sil)
+
+X_clust = cbind(X,clust4$cluster)
+cluster_mean = t(as.data.frame(clust4$centers))
+
+cluster1 = cluster_mean[abs(cluster_mean[,1]) >=  0.2*max(abs(cluster_mean[,1])), 1]
+cluster2 = cluster_mean[abs(cluster_mean[,2]) >=  0.2*max(abs(cluster_mean[,2])), 2]
+cluster3 = cluster_mean[abs(cluster_mean[,3]) >=  0.2*max(abs(cluster_mean[,3])), 3]
+cluster4 = cluster_mean[abs(cluster_mean[,4]) >=  0.2*max(abs(cluster_mean[,4])), 4]
+```
+
+cluster1 = Photo Sharing, travel, tv_film, sports fandom, politics, food, religion, art, school, automotive
+cluster2 = personal fitness, health_nutrition, cooking, photo sharing
+cluster3 = online gaming, college_uni, sports_playing
+cluster4 = current events, travel, photo sharing, sports fandom, politics, cooking, fashion
+
+
+# Q5
+```{r}
+setwd("C:/Users/prakh/Desktop/GitHub/STA380/data/ReutersC50/C50train")
+library(tm) 
+library(tidyverse)
+library(slam)
+library(proxy)
+library(glmnet)
+
+readerPlain = function(fname){
+  readPlain(elem=list(content=readLines(fname)), 
+            id=fname, language='en') }
+
+
+file_list = Sys.glob('*/*.txt')
+authors = lapply(file_list, readerPlain) 
+
+author_names = Sys.glob('*')
+
+# Clean up the file names
+# no doubt the stringr library would be nicer here.
+# this is just what I hacked together
+mynames = file_list %>%
+  { strsplit(., '/', fixed=TRUE) } %>%
+  { lapply(., tail, n=2) } %>%
+  { lapply(., paste0, collapse = '') } %>%
+  unlist
+
+# Rename the articles
+names(authors) = mynames
+
+## once you have documents in a vector, you 
+## create a text mining 'corpus' with: 
+documents_raw = Corpus(VectorSource(authors))
+
+## Some pre-processing/tokenization steps.
+## tm_map just maps some function to every document in the corpus
+my_documents = documents_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+## Remove stopwords.  Always be careful with this: one person's trash is another one's treasure.
+# 2 example built-in sets of stop words
+stopwords("en")
+stopwords("SMART")
+# let's just use the "basic English" stop words
+my_documents = tm_map(my_documents, content_transformer(removeWords), stopwords("en"))
+
+## create a doc-term-matrix from the corpus
+DTM_authors = DocumentTermMatrix(my_documents)
+
+## Finally, let's drop those terms that only occur in one or two documents
+## This is a common step: the noise of the "long tail" (rare terms)
+## can be huge, and there is nothing to learn if a term occured once.
+## Below removes those terms that have count 0 in >95% of docs.  
+## Probably a bit stringent here... but only 50 docs!
+DTM_authors = removeSparseTerms(DTM_authors, 0.95)
+DTM_authors # now ~ 1000 terms (versus ~3000 before)
+
+# construct TF IDF weights -- might be useful if we wanted to use these
+# as features in a predictive model
+tfidf_authors = weightTfIdf(DTM_authors)
+
+X = as.matrix(tfidf_authors)
+scrub_cols = which(colSums(X) == 0)
+X = X[,-scrub_cols]
+
+pca_authors = prcomp(X, scale=TRUE)
+pve = summary(pca_authors)$importance[3,]
+plot(pve)  # not much of an elbow
+
+## 75% variance is explained at PC 331
+X_pca = pca_authors$x[,1:331]
+y = rep(author_names,each=50)
+
+train = as.data.frame(cbind(X_pca,y))
+
+train$y = as.factor(train$y)
+## Random Forest Classifier
+library(randomForest)
+
+rf_classifier = randomForest(y~.,data=train,ntree=1000)
+train_pred = predict(rf_classifier,X_pca)
+cat('Train Accuracy: ',sum(train$y==train_pred)/length(train)) 
+
+## Test Dataset
+setwd("C:/Users/prakh/Desktop/GitHub/STA380/data/ReutersC50/C50test")
+
+file_list = Sys.glob('*/*.txt')
+authors = lapply(file_list, readerPlain) 
+
+author_names = Sys.glob('*')
+
+# Clean up the file names
+# no doubt the stringr library would be nicer here.
+# this is just what I hacked together
+mynames = file_list %>%
+  { strsplit(., '/', fixed=TRUE) } %>%
+  { lapply(., tail, n=2) } %>%
+  { lapply(., paste0, collapse = '') } %>%
+  unlist
+
+# Rename the articles
+names(authors) = mynames
+
+## once you have documents in a vector, you 
+## create a text mining 'corpus' with: 
+documents_raw = Corpus(VectorSource(authors))
+
+## Some pre-processing/tokenization steps.
+## tm_map just maps some function to every document in the corpus
+my_documents = documents_raw %>%
+  tm_map(content_transformer(tolower))  %>%             # make everything lowercase
+  tm_map(content_transformer(removeNumbers)) %>%        # remove numbers
+  tm_map(content_transformer(removePunctuation)) %>%    # remove punctuation
+  tm_map(content_transformer(stripWhitespace))          # remove excess white-space
+
+## Remove stopwords.  Always be careful with this: one person's trash is another one's treasure.
+# 2 example built-in sets of stop words
+stopwords("en")
+stopwords("SMART")
+# let's just use the "basic English" stop words
+my_documents = tm_map(my_documents, content_transformer(removeWords), stopwords("en"))
+
+## create a doc-term-matrix from the corpus
+DTM_authors = DocumentTermMatrix(my_documents)
+
+
+## Finally, let's drop those terms that only occur in one or two documents
+## This is a common step: the noise of the "long tail" (rare terms)
+## can be huge, and there is nothing to learn if a term occured once.
+## Below removes those terms that have count 0 in >95% of docs.  
+## Probably a bit stringent here... but only 50 docs!
+DTM_authors = removeSparseTerms(DTM_authors, 0.95)
+
+# construct TF IDF weights -- might be useful if we wanted to use these
+# as features in a predictive model
+tfidf_authors = weightTfIdf(DTM_authors)
+
+X = as.matrix(tfidf_authors)
+scrub_cols = which(colSums(X) == 0)
+X = X[,-scrub_cols]
+
+X_pca_test = pca_authors$x[,1:331]
+y_test = rep(author_names,each=50)
+
+test = as.data.frame(cbind(X_pca_test,y_test))
+
+test$y_test = as.factor(test$y_test)
+# Predictions
+predictions = predict(rf_classifier, X_pca_test)
+
+cat('Accuracy: ',sum(y_test==predictions)/length(y_test))  
+```
+
+# Q6
+```{r}
+library(tidyverse)
+library(arules)  # has a big ecosystem of packages built around it
+library(arulesViz)
+
+# Association rule mining
+# Adapted from code by Matt Taddy
+
+# Read in playlists from users
+# This is in "long" format -- every row is a single artist-listener pair
+groceries_raw = read.table("groceries.txt",header = F,fill=TRUE,sep=',')
+
+str(groceries_raw)
+summary(groceries_raw)
+
+
+# First create a list of baskets: vectors of items by consumer
+# Analagous to bags of words
+
+# apriori algorithm expects a list of baskets in a special format
+# In this case, one "basket" of songs per user
+# First split data into a list of artists for each user
+playlists = split(x=groceries_raw$artist, f=playlists_raw$user)
+
+## Remove duplicates ("de-dupe")
+playlists = lapply(playlists, unique)
+
+## Cast this variable as a special arules "transactions" class.
+playtrans = as(playlists, "transactions")
+summary(playtrans)
+
+# Now run the 'apriori' algorithm
+# Look at rules with support > .005 & confidence >.1 & length (# artists) <= 5
+musicrules = apriori(groceries_raw, 
+                     parameter=list(support=.005, confidence=.1, maxlen=5))
+
+
+# Look at the output... so many rules!
+inspect(musicrules)
+
+## Choose a subset
+inspect(subset(musicrules, subset=lift > 5))
+inspect(subset(musicrules, subset=confidence > 0.6))
+inspect(subset(musicrules, subset=lift > 10 & confidence > 0.5))
+
+# plot all the rules in (support, confidence) space
+# notice that high lift rules tend to have low support
+plot(musicrules)
+
+# can swap the axes and color scales
+plot(musicrules, measure = c("support", "lift"), shading = "confidence")
+
+# "two key" plot: coloring is by size (order) of item set
+plot(musicrules, method='two-key plot')
+
+# can now look at subsets driven by the plot
+inspect(subset(musicrules, support > 0.035))
+inspect(subset(musicrules, confidence > 0.7))
+
+
+# graph-based visualization
+sub1 = subset(musicrules, subset=confidence > 0.01 & support > 0.005)
+summary(sub1)
+plot(sub1, method='graph')
+?plot.rules
+
+plot(head(sub1, 100, by='lift'), method='graph')
+
+# export
+saveAsGraph(head(musicrules, n = 1000, by = "lift"), file = "musicrules.graphml")
+```
