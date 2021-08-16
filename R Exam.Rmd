@@ -148,7 +148,7 @@ library(mosaic)
 # Medium Risk - Tesla
 
 mystocks = c("AAPL",  "GOOGL", "TXN", "TSLA")
-getSymbols(mystocks)
+getSymbols(mystocks, from = "2016-01-01")
 
 #adjust for stock splits and dividends 
 apple = adjustOHLC(AAPL)
@@ -360,8 +360,6 @@ library(proxy)
 library(plyr)
 library(caret)
 library(randomForest)
-library(arules)
-library(arulesViz)
 
 # function for reading text as plain data
 readerPlain = function(fname){
@@ -393,6 +391,7 @@ my_documents = tm_map(my_documents,
 DTM = DocumentTermMatrix(my_documents)
 # Current Sparisty is 99%. Let's remove long tail of infrequently used words
 DTM = removeSparseTerms(DTM, 0.95)
+
 train_X = as.matrix(DTM)
 
 # Let's create target variable
@@ -431,6 +430,7 @@ my_documents = tm_map(my_documents,
 DTM = DocumentTermMatrix(my_documents)
 # Current Sparisty is 99%. Let's remove long tail of infrequently used words
 DTM = removeSparseTerms(DTM, 0.95)
+
 test_X = as.matrix(DTM)
 
 # Let's create target variable
@@ -492,6 +492,8 @@ confusionMatrix(test_result, as.factor(train_Y),
 ```{r}
 rm(list = ls())
 
+library(arules)
+library(arulesViz)
 groceries = read.transactions('groceries.txt', sep = ',', 
                               rm.duplicates = T, header = F,
                               format = 'basket')
@@ -501,7 +503,8 @@ summary(groceries)
 ```{r}
 grocery_rules = apriori(groceries, 
 	parameter=list(support=.005, confidence=.1, maxlen=5))
-inspect(subset(grocery_rules, subset=lift > 4))
+
+x = arules::inspect(subset(grocery_rules, subset=lift > 3.2 & support < 0.1))
 ```
 
 ```{r}
@@ -509,7 +512,10 @@ plot(grocery_rules, measure = c("support", "confidence"), shading = 'lift')
 ```
 
 ```{r}
-saveAsGraph(head(grocery_rules, n = 1000, by = "lift"), file = "musicrules.graphml")
+saveAsGraph(head(subset(grocery_rules, subset=lift > 2 & support < 0.1), n = 1000, by = "lift"), file = "grocery.graphml")
+
+knitr::include_graphics("gephi.png")
+
 ```
 
 
