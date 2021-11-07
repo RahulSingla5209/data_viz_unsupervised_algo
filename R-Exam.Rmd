@@ -724,7 +724,7 @@ saveAsGraph(head(x, n = 1000, by = "lift"), file = "grocery.graphml")
 
 ```{r,echo=FALSE,warning=FALSE}
 library(png)
-mg <- readPNG('gephi.png')
+img <- readPNG('gephi.png')
 plot(NA,xlim = c(0, 2), ylim = c(0, 4), type = "n", xaxt = "n", yaxt = "n", xlab = "", ylab = "")
 rasterImage(img , 0, 0, 2, 4)
 ```
